@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import '@/styles/globals.css';
+import { QueryProvider } from '../components/query-provider';
+import { ToastProvider } from '../components/toast-provider';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -42,7 +44,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-white`}>
-        {children}
+        <QueryProvider>
+          {children}
+          <ToastProvider />
+        </QueryProvider>
       </body>
     </html>
   );

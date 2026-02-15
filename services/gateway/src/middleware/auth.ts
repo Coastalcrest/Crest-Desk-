@@ -1,23 +1,19 @@
-import type { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import { logger } from "../lib/logger";
-
-// ------------------------------------------------------------------ //
-//  Types                                                              //
-// ------------------------------------------------------------------ //
+import type { Request, Response, NextFunction } from 'express';
+import { verifyAccessToken, type JwtPayload } from '../lib/jwt';
+import { db } from '../lib/db';
+import { sessions } from '../lib/schema';
+import { eq, and, isNull, gt } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+import { logger } from '../lib/logger';
 
 export interface TokenPayload {
-  userId: string;
-  tenantId: string;
+  sub: string;       // userId
+  tid: string;       // tenantId
   role: string;
-  permissions: string[];
-  iat?: number;
-  exp?: number;
+  perms: string[];
+  jti: string;
 }
 
-/**
- * Augment the Express Request type so `req.user` is available downstream.
- */
 declare global {
   namespace Express {
     interface Request {
@@ -26,25 +22,11 @@ declare global {
   }
 }
 
-// ------------------------------------------------------------------ //
-//  Constants                                                          //
-// ------------------------------------------------------------------ //
-
-const JWT_SECRET = process.env.JWT_SECRET ?? "changeme-not-for-production";
-
-// ------------------------------------------------------------------ //
-//  Middleware                                                          //
-// ------------------------------------------------------------------ //
-
 /**
  * JWT verification middleware.
- *
- * 1. Reads the Bearer token from the `Authorization` header.
- * 2. Verifies the JWT signature and expiry.
- * 3. Attaches the decoded payload to `req.user`.
- * 4. Sets the Postgres RLS context via `SET LOCAL app.current_tenant_id`
- *    so that every subsequent query in the same transaction is scoped to
- *    the caller's tenant.
+ * 1. Reads Bearer token
+ * 2. Verifies JWT signature and expiry
+ * 3. Attaches decoded payload to req.user
  */
 export async function authenticate(
   req: Request,
@@ -54,78 +36,76 @@ export async function authenticate(
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       res.status(401).json({
         error: {
-          code: "UNAUTHORIZED",
-          message: "Missing or malformed Authorization header",
+          code: 'UNAUTHORIZED',
+          message: 'Missing or malformed Authorization header',
         },
       });
       return;
     }
 
-    const token = authHeader.slice(7); // strip "Bearer "
-
-    // TODO: Replace stub with proper jwt.verify once signing keys are wired up
-    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const token = authHeader.slice(7);
+    const decoded = verifyAccessToken(token);
 
     req.user = {
-      userId: decoded.userId,
-      tenantId: decoded.tenantId,
+      sub: decoded.sub,
+      tid: decoded.tid,
       role: decoded.role,
-      permissions: decoded.permissions,
+      perms: decoded.perms,
+      jti: decoded.jti,
     };
 
-    // TODO: Acquire a pooled PG client and execute:
-    //   await client.query("SET LOCAL app.current_tenant_id = $1", [decoded.tenantId]);
-    // This ensures row-level security policies scope every query to the
-    // authenticated tenant for the lifetime of this request.
+    // Also set legacy fields for backwards compat with any code using userId/tenantId
+    (req.user as any).userId = decoded.sub;
+    (req.user as any).tenantId = decoded.tid;
+    (req.user as any).permissions = decoded.perms;
 
     logger.debug(
-      { userId: decoded.userId, tenantId: decoded.tenantId },
-      "Authenticated request",
+      { userId: decoded.sub, tenantId: decoded.tid },
+      'Authenticated request',
     );
 
     next();
-  } catch (err) {
-    if (err instanceof jwt.JsonWebTokenError) {
+  } catch (err: any) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       res.status(401).json({
         error: {
-          code: "INVALID_TOKEN",
-          message: "The provided token is invalid or expired",
+          code: 'INVALID_TOKEN',
+          message: 'The provided token is invalid or expired',
         },
       });
       return;
     }
-
     next(err);
   }
 }
 
 /**
- * Authorisation guard factory.
- *
- * Returns middleware that checks whether `req.user` has **all** of the
- * listed permissions before allowing the request through.
+ * Permission-based authorization guard.
+ * Checks whether req.user has ALL of the listed permissions.
  */
 export function requirePermissions(...required: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
-        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
       });
       return;
     }
 
-    const missing = required.filter(
-      (p) => !req.user!.permissions.includes(p),
-    );
+    const missing = required.filter((p) => !req.user!.perms.includes(p));
 
     if (missing.length > 0) {
       res.status(403).json({
         error: {
-          code: "FORBIDDEN",
-          message: `Missing required permissions: ${missing.join(", ")}`,
+          code: 'FORBIDDEN',
+          message: `Missing required permissions: ${missing.join(', ')}`,
+          details: {
+            required_permissions: required,
+            your_role: req.user.role,
+          },
         },
       });
       return;

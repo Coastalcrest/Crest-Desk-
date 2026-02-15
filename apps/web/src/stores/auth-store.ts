@@ -5,65 +5,46 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'admin' | 'broker' | 'agent' | 'staff';
+  role: 'agent' | 'managing_broker' | 'principal_broker' | 'owner';
+  tenantId: string;
+  mfaEnabled: boolean;
+  emailVerified: boolean;
+  onboardingCompleted: boolean;
+  onboardingStep: number;
+  avatarUrl?: string;
+  phone?: string;
+  licensedStates?: string[];
+  preferences?: Record<string, unknown>;
 }
 
 interface AuthState {
-  /** JWT access token kept in memory only (not localStorage) */
   accessToken: string | null;
-
-  /** Currently authenticated user */
   user: User | null;
-
-  /** Whether an auth operation is in progress */
   isLoading: boolean;
-
-  /** Set the access token and user after successful login */
   login: (accessToken: string, user: User) => void;
-
-  /** Clear auth state on logout */
   logout: () => void;
-
-  /** Update the access token (e.g., after a silent refresh) */
   setAccessToken: (token: string) => void;
-
-  /** Set loading state */
+  setUser: (user: User) => void;
   setLoading: (loading: boolean) => void;
 }
 
-/**
- * Zustand auth store.
- *
- * The access token is stored in memory only -- never persisted to
- * localStorage or sessionStorage -- to reduce XSS risk.
- * Refresh tokens are handled via httpOnly cookies by the API.
- */
 export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   user: null,
   isLoading: false,
 
   login: (accessToken, user) =>
-    set({
-      accessToken,
-      user,
-      isLoading: false,
-    }),
+    set({ accessToken, user, isLoading: false }),
 
   logout: () =>
-    set({
-      accessToken: null,
-      user: null,
-      isLoading: false,
-    }),
+    set({ accessToken: null, user: null, isLoading: false }),
 
   setAccessToken: (token) =>
-    set({
-      accessToken: token,
-    }),
+    set({ accessToken: token }),
+
+  setUser: (user) =>
+    set({ user }),
 
   setLoading: (loading) =>
-    set({
-      isLoading: loading,
-    }),
+    set({ isLoading: loading }),
 }));
