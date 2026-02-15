@@ -7,6 +7,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-02-15
+
+### Added — Phase 2: Documents & Forms
+
+#### Database Schema (7 New Tables)
+- Transactions table with property address, state, buyer/seller, price, status lifecycle
+- Documents table with S3 storage, AI classification, extracted data, compliance status
+- Forms table for reusable form templates with HTML templates and JSON schemas
+- Form instances table linking filled forms to transactions
+- Compliance checklists table with per-transaction, per-jurisdiction checklist items
+- Document tags table for flexible document organization
+- Document audit log table (immutable, insert-only) for document access tracking
+- Row-Level Security policies for all Phase 2 tables
+- Updated_at triggers for automatic timestamp management
+
+#### Transaction Management (Gateway API)
+- Full transaction CRUD (create, list, get, update, soft-delete)
+- Pagination, search by address, filter by status and state
+- Transaction types: buy, sell, lease, investment
+- Status lifecycle: draft → active → under_contract → pending → closed → canceled
+
+#### Document Management (Gateway API)
+- Document upload with S3 presigned URL generation
+- Document listing with filters (transaction, type, compliance, signed status)
+- Full-text search across document filenames, types, and extracted data
+- Document classification (manual override) with confidence scoring
+- Document tagging system (add tags by key/value)
+- Document download with presigned URL and audit logging
+- Per-transaction document listing
+- Document versioning via version_of_document_id links
+- Document audit trail (upload, view, download, classify, delete events)
+
+#### Forms Engine (Gateway API)
+- Form template listing with jurisdiction and type filters
+- State-specific form retrieval (e.g., Oregon forms for OR transactions)
+- Custom form template creation (Principal Broker+)
+- Form instance creation, update, and validation
+- Auto-fill from transaction data (buyer, seller, address, price)
+- Required field validation with missing field reporting
+- Form completion status tracking
+
+#### Compliance Checklists (Gateway API)
+- Auto-generated checklists when accessing a transaction (based on state)
+- Oregon-specific checklist with 12 items (federal + state)
+- Federal checklist template for all other states (5 items)
+- Individual item check/uncheck with user tracking and timestamps
+- Automatic status recalculation (federal complete, state complete, overall)
+- Checklist status summary endpoint with progress percentages
+- Color-coded status: red (missing), green (complete)
+
+#### AI Document Service (Python/FastAPI)
+- Document classification endpoint using Claude AI (17 document types)
+- Data extraction endpoint (buyer, seller, address, price, dates, terms)
+- OCR endpoint for scanned PDFs and images (pytesseract + Pillow)
+- Compliance checking endpoint with jurisdiction-aware rule evaluation
+- PDF text extraction with pypdf
+- Structured JSON responses with confidence scores
+- Health check endpoint
+- Dockerfile with Tesseract OCR system dependency
+
+#### Oregon Form Templates (Seed Data)
+- Oregon Purchase Agreement (NAR standard)
+- Oregon Seller Property Condition Disclosure (ORS 93.275)
+- Oregon Lead-Based Paint Disclosure (ORS 93.705)
+- Oregon Agency Disclosure (ORS 696.600)
+- Oregon Buyer Information Sheet
+- Oregon HOA Disclosure Addendum
+- Oregon Inspection Addendum
+- Oregon Financing Addendum
+- Oregon Counter Offer
+- Oregon Post-Inspection Repairs Addendum
+
+#### Frontend — Document Hub
+- Document hub page with search, filters, table view, upload button
+- Document detail page with metadata, extracted data, compliance status, tags
+- Drag-and-drop document upload page with AI classification results
+- Advanced document search page with multi-filter panel
+- Per-document compliance status indicators (green/yellow/red)
+
+#### Frontend — Transaction Management
+- Transaction list page with search, status filter tabs, card grid view
+- New transaction creation modal
+- Transaction detail page with tabbed view (Documents, Forms, Compliance, Activity)
+- Document folder tree view per transaction
+
+#### Frontend — Forms
+- Forms library page with jurisdiction and type filters
+- Form filling page with dynamic field rendering from JSON schema
+- Required field validation with visual indicators
+- Clause library sidebar for one-click insertion
+- Auto-fill from transaction data
+- Save draft and validate actions
+
+#### Frontend — Compliance
+- Compliance checklist page with federal and state sections
+- Progress bars (federal %, state %)
+- Interactive checkboxes with real-time status updates
+- Statute references for each checklist item
+- Color-coded status indicators
+
+#### Frontend — Email Integration Settings
+- Connected email accounts management (Gmail/Outlook OAuth placeholders)
+- Transaction email address display with copy-to-clipboard
+- Auto-filing rules configuration with confidence threshold
+- Sender-to-role mapping rules
+
+#### Frontend — Navigation
+- Added Forms nav item with ClipboardList icon to sidebar
+
 ## [v0.1.0] - 2026-02-15
 
 ### Added — Phase 1: Auth, Roles & Onboarding

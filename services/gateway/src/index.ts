@@ -17,6 +17,10 @@ import usersRoutes from './routes/users';
 import tenantRoutes from './routes/tenant';
 import complianceRoutes from './routes/compliance';
 import flagsRoutes from './routes/flags';
+import transactionsRoutes from './routes/transactions';
+import documentsRoutes from './routes/documents';
+import formsRoutes from './routes/forms';
+import checklistsRoutes from './routes/checklists';
 
 const app = express();
 
@@ -58,6 +62,10 @@ app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/tenant', tenantRoutes);
 app.use('/api/v1/compliance', complianceRoutes);
 app.use('/api/v1/flags', flagsRoutes);
+app.use('/api/v1/transactions', transactionsRoutes);
+app.use('/api/v1/documents', documentsRoutes);
+app.use('/api/v1/forms', formsRoutes);
+app.use('/api/v1/compliance-checklists', checklistsRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 
