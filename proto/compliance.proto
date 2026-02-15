@@ -1,0 +1,58 @@
+syntax = "proto3";
+package crestdesk.compliance;
+import "common.proto";
+
+service ComplianceService {
+  rpc CheckContent (ContentCheckRequest) returns (ContentCheckResponse);
+  rpc GetRulesForState (StateRequest) returns (RulesResponse);
+}
+
+message ContentCheckRequest {
+  string content = 1;
+  string content_type = 2;
+  string state = 3;
+  map<string, string> metadata = 4;
+}
+
+message ContentCheckResponse {
+  bool compliant = 1;
+  repeated Violation violations = 2;
+  repeated Insertion required_insertions = 3;
+}
+
+message Violation {
+  string rule_key = 1;
+  string severity = 2;
+  string message = 3;
+  string jurisdiction = 4;
+}
+
+message Insertion {
+  string rule_key = 1;
+  string text = 2;
+  string position = 3;
+  string jurisdiction = 4;
+}
+
+message StateRequest {
+  string state = 1;
+  string category = 2;
+}
+
+message RulesResponse {
+  repeated ComplianceRule rules = 1;
+}
+
+message ComplianceRule {
+  string id = 1;
+  string jurisdiction = 2;
+  string category = 3;
+  string subcategory = 4;
+  string rule_key = 5;
+  string title = 6;
+  string description = 7;
+  crestdesk.common.ComplianceEnforcement enforcement = 8;
+  repeated string applies_to = 9;
+  string effective_date = 10;
+  int32 version = 11;
+}

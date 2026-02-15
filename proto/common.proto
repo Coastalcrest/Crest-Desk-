@@ -1,0 +1,22 @@
+syntax = "proto3";
+package crestdesk.common;
+
+message UUID { string value = 1; }
+message Timestamp { int64 seconds = 1; int32 nanos = 2; }
+message Pagination { int32 page = 1; int32 per_page = 2; int32 total = 3; }
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  AGENT = 1;
+  MANAGING_BROKER = 2;
+  PRINCIPAL_BROKER = 3;
+  OWNER = 4;
+}
+
+enum ComplianceEnforcement {
+  ENFORCEMENT_UNSPECIFIED = 0;
+  BLOCK = 1;
+  WARN = 2;
+  REQUIRE = 3;
+  INSERT = 4;
+}

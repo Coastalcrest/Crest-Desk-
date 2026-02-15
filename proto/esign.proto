@@ -1,0 +1,46 @@
+syntax = "proto3";
+package crestdesk.esign;
+import "common.proto";
+
+service ESignService {
+  rpc CreateSignature (CreateSignatureRequest) returns (CreateSignatureResponse);
+  rpc VerifySignature (VerifySignatureRequest) returns (VerifySignatureResponse);
+  rpc CheckTamper (TamperCheckRequest) returns (TamperCheckResponse);
+}
+
+message CreateSignatureRequest {
+  string document_hash = 1;
+  string signer_id = 2;
+  string tenant_id = 3;
+  map<string, string> metadata = 4;
+}
+
+message CreateSignatureResponse {
+  string signature_id = 1;
+  bytes signature = 2;
+  string certificate = 3;
+  string timestamp = 4;
+}
+
+message VerifySignatureRequest {
+  string document_hash = 1;
+  bytes signature = 2;
+  string certificate = 3;
+}
+
+message VerifySignatureResponse {
+  bool valid = 1;
+  string signer_id = 2;
+  string signed_at = 3;
+}
+
+message TamperCheckRequest {
+  string document_id = 1;
+  string current_hash = 2;
+}
+
+message TamperCheckResponse {
+  bool tampered = 1;
+  string original_hash = 2;
+  string message = 3;
+}

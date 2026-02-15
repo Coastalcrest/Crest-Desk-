@@ -1,0 +1,22 @@
+# CrestDesk Dev Environment - Terraform Variables
+#
+# Copy this file to terraform.tfvars and fill in the values.
+# Do NOT commit terraform.tfvars to version control.
+#
+# cp terraform.tfvars.example terraform.tfvars
+
+environment = "dev"
+aws_region  = "us-west-2"
+
+# Database
+db_name     = "crestdesk"
+db_username = "crestdesk_admin"
+
+# ECS Services (customize if adding or removing microservices)
+ecs_service_names = [
+  "api-gateway",
+  "auth-service",
+  "ticket-service",
+  "notification-service",
+  "analytics-service"
+]

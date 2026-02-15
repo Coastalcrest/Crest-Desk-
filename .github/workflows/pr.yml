@@ -1,0 +1,107 @@
+name: PR Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-ts:
+    name: Lint TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx turbo run lint
+
+  lint-py:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install ruff black mypy
+      - run: ruff check services/ai-docs services/ai-copilot services/ai-assist services/ai-media services/ai-marketing services/compliance services/preference-engine
+      - run: black --check services/ai-docs services/ai-copilot services/ai-assist services/ai-media services/ai-marketing services/compliance services/preference-engine
+
+  lint-rs:
+    name: Lint Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cd services/esign && cargo fmt --check
+      - run: cd services/esign && cargo clippy -- -D warnings
+      - run: cd services/media-encoder && cargo fmt --check
+      - run: cd services/media-encoder && cargo clippy -- -D warnings
+
+  test-ts:
+    name: Test TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx turbo run test
+
+  test-py:
+    name: Test Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pytest pytest-asyncio pytest-cov httpx
+      - run: pytest services/compliance/tests services/ai-docs/tests --tb=short
+
+  test-rs:
+    name: Test Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cd services/esign && cargo test
+      - run: cd services/media-encoder && cargo test
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint-ts, lint-py, lint-rs, test-ts, test-py, test-rs, security]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f services/gateway/Dockerfile -t crestdesk-gateway:test services/gateway

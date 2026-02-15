@@ -1,0 +1,11 @@
+{
+  "name": "@crestdesk/config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./eslint.config.js",
+  "files": [
+    "eslint.config.js",
+    "tailwind.config.ts",
+    "tsconfig.base.json"
+  ]
+}

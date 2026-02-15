@@ -1,0 +1,122 @@
+###############################################################################
+# CrestDesk Local Development - Docker Compose
+#
+# Usage:
+#   docker compose up -d                     Start core services
+#   docker compose --profile monitoring up -d  Start with Datadog agent
+#   docker compose down                      Stop all services
+#   docker compose down -v                   Stop and remove volumes
+###############################################################################
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: crestdesk-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: crestdesk
+      POSTGRES_USER: crestdesk
+      POSTGRES_PASSWORD: crestdesk_dev
+    volumes:
+      - crestdesk-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crestdesk -d crestdesk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - crestdesk-net
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: crestdesk-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - crestdesk-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - crestdesk-net
+
+  # ---------------------------------------------------------------------------
+  # Elasticsearch 8.16
+  # ---------------------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.16.0
+    container_name: crestdesk-elasticsearch
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    volumes:
+      - crestdesk-elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - crestdesk-net
+
+  # ---------------------------------------------------------------------------
+  # Datadog Agent 7  (only starts with --profile monitoring)
+  # ---------------------------------------------------------------------------
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: crestdesk-datadog-agent
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    ports:
+      - "8126:8126"       # APM
+      - "8125:8125/udp"   # DogStatsD
+    environment:
+      DD_API_KEY: ${DATADOG_API_KEY}
+      DD_SITE: us5.datadoghq.com
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: "true"
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: "true"
+      DD_PROCESS_AGENT_ENABLED: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    networks:
+      - crestdesk-net
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  crestdesk-net:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  crestdesk-postgres:
+  crestdesk-redis:
+  crestdesk-elasticsearch:
