@@ -13,6 +13,7 @@ import {
   Tag,
   MapPin,
   Star,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -73,6 +74,65 @@ const US_STATES = [
 ];
 
 const FORM_TYPES = ['All Types', 'agreement', 'disclosure', 'addendum'];
+
+// ---------------------------------------------------------------------------
+// External Forms Providers
+// ---------------------------------------------------------------------------
+
+interface ExternalProvider {
+  name: string;
+  description: string;
+  url: string;
+  category: 'forms' | 'platform';
+  logo?: string;
+}
+
+const EXTERNAL_PROVIDERS: ExternalProvider[] = [
+  // Oregon form libraries
+  {
+    name: 'OREF — Oregon Real Estate Forms',
+    description:
+      'Official Oregon real estate forms library with 200+ residential and commercial forms. Requires annual subscription ($89–$198/yr).',
+    url: 'https://orefonline.com/oref-library/',
+    category: 'forms',
+  },
+  {
+    name: 'Oregon REALTORS Forms',
+    description:
+      'State association forms library included free with Oregon REALTORS membership. Includes clause library and Spanish translations.',
+    url: 'https://www.orforms.org/',
+    category: 'forms',
+  },
+  // Transaction management platforms
+  {
+    name: 'SkySlope Forms',
+    description:
+      'OREF-authorized platform included free with OREF subscription. Includes DigiSign e-signatures and SkySlope Breeze.',
+    url: 'https://skyslope.com/',
+    category: 'platform',
+  },
+  {
+    name: 'Dotloop',
+    description:
+      'Transaction management platform hosting OREF and Oregon REALTORS forms. Dotloop Essentials included with Oregon REALTORS membership.',
+    url: 'https://www.dotloop.com/',
+    category: 'platform',
+  },
+  {
+    name: 'Lone Wolf Transactions (zipForm Edition)',
+    description:
+      'Widely used national platform hosting both OREF and Oregon REALTORS forms with e-signature capabilities.',
+    url: 'https://www.lwolf.com/products/transactions-zipform-edition',
+    category: 'platform',
+  },
+  {
+    name: 'DocuSign',
+    description:
+      'OREF-authorized e-signature platform. Use with OREF forms for legally binding digital signatures.',
+    url: 'https://www.docusign.com/',
+    category: 'platform',
+  },
+];
 
 const TYPE_BADGE_COLORS: Record<string, string> = {
   agreement: 'bg-blue-100 text-blue-800',
@@ -320,6 +380,78 @@ export default function FormsLibraryPage() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* ── External Forms & Resources ── */}
+      <div>
+        <div className="mb-3 flex items-center gap-2 px-1">
+          <ExternalLink className="h-4 w-4 text-[#1B3A5C]" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+            External Forms &amp; Resources
+          </h2>
+        </div>
+        <p className="mb-4 text-sm text-gray-500 px-1">
+          Access official state form libraries and authorized transaction platforms. An active subscription or membership may be required.
+        </p>
+
+        {/* Form Libraries */}
+        <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Official Form Libraries
+        </h3>
+        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          {EXTERNAL_PROVIDERS.filter((p) => p.category === 'forms').map(
+            (provider) => (
+              <a
+                key={provider.name}
+                href={provider.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-[#2A9D8F] hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900 group-hover:text-[#2A9D8F]">
+                    {provider.name}
+                  </h3>
+                  <ExternalLink className="h-4 w-4 flex-shrink-0 text-gray-400 group-hover:text-[#2A9D8F]" />
+                </div>
+                <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+                  {provider.description}
+                </p>
+                <span className="mt-3 text-xs font-medium text-[#2A9D8F]">
+                  Open library &rarr;
+                </span>
+              </a>
+            ),
+          )}
+        </div>
+
+        {/* Transaction Platforms */}
+        <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Authorized Transaction Platforms
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {EXTERNAL_PROVIDERS.filter((p) => p.category === 'platform').map(
+            (provider) => (
+              <a
+                key={provider.name}
+                href={provider.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-[#2A9D8F] hover:shadow-md"
+              >
+                <div className="flex items-start justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900 group-hover:text-[#2A9D8F]">
+                    {provider.name}
+                  </h3>
+                  <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-gray-400 group-hover:text-[#2A9D8F]" />
+                </div>
+                <p className="mt-2 text-xs text-gray-500 leading-relaxed line-clamp-2">
+                  {provider.description}
+                </p>
+              </a>
+            ),
+          )}
+        </div>
       </div>
     </div>
   );
