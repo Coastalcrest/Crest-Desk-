@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import {
   Settings,
   Plus,
@@ -22,34 +24,79 @@ import {
   Trash2,
 } from 'lucide-react';
 
+interface CommissionStructure {
+  id: string;
+  agentId: string | null;
+  dealType: string | null;
+  brokeragePercentage: string;
+  agentPercentage: string;
+  referralFeeFlat: string;
+  referralFeePercentage: string;
+  franchiseFeePercentage: string;
+  effectiveDate: string;
+  notes: string | null;
+  agentFirstName: string | null;
+  agentLastName: string | null;
+  createdAt: string;
+}
 
 export default function FinancialSettingsPage() {
-  const [showStructureModal, setShowStructureModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
+  const queryClient = useQueryClient();
 
-  const [defaultStructure] = useState({
-    brokeragePercent: 30,
-    agentPercent: 70,
-    effectiveDate: '2025-01-01',
-    franchiseFee: 6,
+  const [showStructureModal, setShowStructureModal] = useState(false);
+
+  const [newStructure, setNewStructure] = useState({
+    agentId: '',
+    brokeragePercentage: '',
+    agentPercentage: '',
+    effectiveDate: '',
+    notes: '',
   });
 
-  const [agentOverrides] = useState([
-    { id: '1', agent: 'Sarah Mitchell', brokeragePercent: 25, agentPercent: 75, effectiveDate: '2025-06-01', reason: 'Top producer tier' },
-    { id: '2', agent: 'James Rodriguez', brokeragePercent: 28, agentPercent: 72, effectiveDate: '2025-03-15', reason: 'Senior agent agreement' },
-    { id: '3', agent: 'Emily Chen', brokeragePercent: 25, agentPercent: 75, effectiveDate: '2025-09-01', reason: 'Performance milestone' },
-  ]);
+  // ------------------------------------------------------------------ //
+  //  Commission structures query                                        //
+  // ------------------------------------------------------------------ //
 
-  const [qbConnection] = useState({
+  const { data: structures, isLoading } = useQuery<CommissionStructure[]>({
+    queryKey: ['commissions', 'structures'],
+    queryFn: () => api<CommissionStructure[]>('/commissions/structures'),
+  });
+
+  const defaultStructure = structures?.find((s) => s.agentId === null);
+  const agentOverrides = structures?.filter((s) => s.agentId !== null) ?? [];
+
+  // ------------------------------------------------------------------ //
+  //  Create mutation                                                    //
+  // ------------------------------------------------------------------ //
+
+  const createMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      api('/commissions/structures', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['commissions', 'structures'] });
+      setShowStructureModal(false);
+      setNewStructure({
+        agentId: '',
+        brokeragePercentage: '',
+        agentPercentage: '',
+        effectiveDate: '',
+        notes: '',
+      });
+    },
+  });
+
+  // ------------------------------------------------------------------ //
+  //  QB connection placeholder (Phase 8 — no API yet)                   //
+  // ------------------------------------------------------------------ //
+
+  const qbConnection = {
     isConnected: true,
     lastSync: '2026-02-15 08:30 AM',
     companyName: 'Coastal Crest Realty LLC',
     syncStatus: 'success',
-  });
+  };
 
-  const [accountMappings] = useState([
+  const accountMappings = [
     { category: 'Commission Income', qbAccount: '4000 - Commission Revenue', qbCode: '4000', status: 'mapped' },
     { category: 'Referral Fees', qbAccount: '4100 - Referral Income', qbCode: '4100', status: 'mapped' },
     { category: 'Desk Fee Income', qbAccount: '4200 - Agent Fees', qbCode: '4200', status: 'mapped' },
@@ -60,31 +107,45 @@ export default function FinancialSettingsPage() {
     { category: 'Office Rent', qbAccount: '5400 - Rent Expense', qbCode: '5400', status: 'mapped' },
     { category: 'Technology Fees', qbAccount: '5500 - Technology', qbCode: '5500', status: 'mapped' },
     { category: 'Agent Payouts', qbAccount: '6000 - Commission Payable', qbCode: '6000', status: 'mapped' },
-  ]);
+  ];
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  // ------------------------------------------------------------------ //
+  //  Handlers                                                           //
+  // ------------------------------------------------------------------ //
 
-  const handleSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => setIsSyncing(false), 2000);
+  const handleSaveStructure = () => {
+    const body: Record<string, unknown> = {
+      brokeragePercentage: newStructure.brokeragePercentage,
+      agentPercentage: newStructure.agentPercentage,
+    };
+    if (newStructure.agentId) {
+      body.agentId = newStructure.agentId;
+    }
+    if (newStructure.effectiveDate) {
+      body.effectiveDate = newStructure.effectiveDate;
+    }
+    if (newStructure.notes) {
+      body.notes = newStructure.notes;
+    }
+    createMutation.mutate(body);
   };
 
-  const handleTestConnection = () => {
-    setIsTesting(true);
-    setTimeout(() => setIsTesting(false), 1500);
-  };
+  // ------------------------------------------------------------------ //
+  //  Loading state                                                      //
+  // ------------------------------------------------------------------ //
 
   if (isLoading) {
-    return (<div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]"></div></div>);
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]"></div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: "Inter, sans-serif" }}>Financial Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: 'Inter, sans-serif' }}>Financial Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Configure commission structures and QuickBooks integration</p>
       </div>
 
@@ -104,24 +165,24 @@ export default function FinancialSettingsPage() {
           <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl border border-blue-100 p-6 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary)] text-white">DEFAULT</span>
-              <span className="text-sm text-gray-500">Effective since {defaultStructure.effectiveDate}</span>
+              <span className="text-sm text-gray-500">Effective since {defaultStructure?.effectiveDate ?? '\u2014'}</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-gray-500 mb-1">Brokerage Split</p>
-                <p className="text-2xl font-bold text-[var(--color-primary)]">{defaultStructure.brokeragePercent}%%</p>
+                <p className="text-2xl font-bold text-[var(--color-primary)]">{parseFloat(defaultStructure?.brokeragePercentage ?? '0')}%%</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Agent Split</p>
-                <p className="text-2xl font-bold text-[var(--color-secondary)]">{defaultStructure.agentPercent}%%</p>
+                <p className="text-2xl font-bold text-[var(--color-secondary)]">{parseFloat(defaultStructure?.agentPercentage ?? '0')}%%</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Franchise Fee</p>
-                <p className="text-2xl font-bold text-gray-700">{defaultStructure.franchiseFee}%%</p>
+                <p className="text-2xl font-bold text-gray-700">{parseFloat(defaultStructure?.franchiseFeePercentage ?? '0')}%%</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Effective Date</p>
-                <p className="text-lg font-semibold text-gray-700">{defaultStructure.effectiveDate}</p>
+                <p className="text-lg font-semibold text-gray-700">{defaultStructure?.effectiveDate ?? '\u2014'}</p>
               </div>
             </div>
           </div>
@@ -143,11 +204,15 @@ export default function FinancialSettingsPage() {
               <tbody className="divide-y divide-gray-100 border-x border-b border-gray-200">
                 {agentOverrides.map((override) => (
                   <tr key={override.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-900">{override.agent}</td>
-                    <td className="px-4 py-3 text-center text-sm">{override.brokeragePercent}%%</td>
-                    <td className="px-4 py-3 text-center text-sm font-semibold text-[var(--color-secondary)]">{override.agentPercent}%%</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {override.agentFirstName && override.agentLastName
+                        ? `${override.agentFirstName} ${override.agentLastName}`
+                        : 'Unknown Agent'}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm">{parseFloat(override.brokeragePercentage)}%%</td>
+                    <td className="px-4 py-3 text-center text-sm font-semibold text-[var(--color-secondary)]">{parseFloat(override.agentPercentage)}%%</td>
                     <td className="px-4 py-3 text-center text-sm text-gray-600">{override.effectiveDate}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{override.reason}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{override.notes ?? '\u2014'}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button className="p-1.5 hover:bg-gray-100 rounded-lg"><Edit3 className="w-3.5 h-3.5 text-gray-500" /></button>
@@ -156,6 +221,13 @@ export default function FinancialSettingsPage() {
                     </td>
                   </tr>
                 ))}
+                {agentOverrides.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                      No agent-specific overrides configured
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -174,12 +246,12 @@ export default function FinancialSettingsPage() {
           {/* Connection Status */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50">
             <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl ${qbConnection.isConnected ? "bg-green-100" : "bg-red-100"}`}>
+              <div className={`p-3 rounded-xl ${qbConnection.isConnected ? 'bg-green-100' : 'bg-red-100'}`}>
                 {qbConnection.isConnected ? <Link2 className="w-6 h-6 text-green-600" /> : <Unlink className="w-6 h-6 text-red-600" />}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-gray-900">{qbConnection.isConnected ? "Connected" : "Disconnected"}</p>
+                  <p className="font-semibold text-gray-900">{qbConnection.isConnected ? 'Connected' : 'Disconnected'}</p>
                   {qbConnection.isConnected && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                 </div>
                 {qbConnection.isConnected && (
@@ -194,11 +266,11 @@ export default function FinancialSettingsPage() {
             <div className="flex items-center gap-2">
               {qbConnection.isConnected ? (
                 <>
-                  <button onClick={handleTestConnection} disabled={isTesting} className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50">
-                    <Zap className={`w-4 h-4 ${isTesting ? "animate-pulse" : ""}`} /> {isTesting ? "Testing..." : "Test Connection"}
+                  <button className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50">
+                    <Zap className="w-4 h-4" /> Test Connection
                   </button>
-                  <button onClick={handleSync} disabled={isSyncing} className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--color-secondary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
-                    <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} /> {isSyncing ? "Syncing..." : "Sync Now"}
+                  <button className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--color-secondary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                    <RefreshCw className="w-4 h-4" /> Sync Now
                   </button>
                 </>
               ) : (
@@ -252,33 +324,78 @@ export default function FinancialSettingsPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Agent (leave empty for default)</label>
-                <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <select
+                  value={newStructure.agentId}
+                  onChange={(e) => setNewStructure((prev) => ({ ...prev, agentId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                >
                   <option value="">Default Structure</option>
-                  <option>Sarah Mitchell</option><option>James Rodriguez</option><option>Emily Chen</option>
+                  {agentOverrides.map((override) => (
+                    <option key={override.id} value={override.agentId ?? ''}>
+                      {override.agentFirstName && override.agentLastName
+                        ? `${override.agentFirstName} ${override.agentLastName}`
+                        : 'Unknown Agent'}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Brokerage %%</label>
-                  <input type="number" placeholder="30" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  <input
+                    type="number"
+                    placeholder="30"
+                    value={newStructure.brokeragePercentage}
+                    onChange={(e) => setNewStructure((prev) => ({ ...prev, brokeragePercentage: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Agent %%</label>
-                  <input type="number" placeholder="70" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  <input
+                    type="number"
+                    placeholder="70"
+                    value={newStructure.agentPercentage}
+                    onChange={(e) => setNewStructure((prev) => ({ ...prev, agentPercentage: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Effective Date</label>
-                <input type="date" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                <input
+                  type="date"
+                  value={newStructure.effectiveDate}
+                  onChange={(e) => setNewStructure((prev) => ({ ...prev, effectiveDate: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason / Notes</label>
-                <textarea rows={2} placeholder="Reason for override..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"></textarea>
+                <textarea
+                  rows={2}
+                  placeholder="Reason for override..."
+                  value={newStructure.notes}
+                  onChange={(e) => setNewStructure((prev) => ({ ...prev, notes: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
+                ></textarea>
               </div>
+              {createMutation.isError && (
+                <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>Failed to save structure. Please try again.</span>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
               <button onClick={() => setShowStructureModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={() => setShowStructureModal(false)} className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90">Save Structure</button>
+              <button
+                onClick={handleSaveStructure}
+                disabled={createMutation.isPending}
+                className="px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {createMutation.isPending ? 'Saving...' : 'Save Structure'}
+              </button>
             </div>
           </div>
         </div>
