@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.9.0] - 2026-02-16
+
+### Added — Phase 9: Email Hub & AI Assistant
+
+#### Database Schema (5 New Tables)
+- Email accounts table for multi-provider connections (Gmail, Outlook, IMAP) with OAuth tokens and SMTP/IMAP settings
+- Emails table with unified inbox model — threads, folders, attachments, AI fields (summary, sentiment, category, suggested reply)
+- Email templates table for reusable message templates with variables, categories, shared/private visibility, and usage tracking
+- Email rules table for automated inbox management — conditions, actions, priority ordering, and match count analytics
+- Email AI preferences table for per-user voice tone, writing style, learned/avoided phrases, and custom AI instructions
+
+#### SQL Migrations (0068-0074)
+- Create email_accounts with RLS and indexes on tenant, user, email
+- Create emails with RLS and indexes on tenant, account, user, thread, folder, contact, deal, received_at
+- Create email_templates with RLS and indexes on tenant, category, created_by
+- Create email_rules with RLS and indexes on tenant, user, enabled status
+- Create email_ai_preferences with RLS and indexes on tenant, user
+- Add foreign key constraint from emails.account_id → email_accounts.id
+- Seed data placeholder migration
+
+#### Gateway Routes (2 Route Modules)
+- Email inbox routes: unified inbox listing with folder/account/search/contact/deal filters, thread view, compose/send, AI reply generation, AI summarization, batch operations (mark read, archive, trash, star), soft delete
+- Email settings routes: account CRUD (add/update/remove email accounts), template CRUD with shared/private visibility, rule CRUD with priority/conditions/actions, AI preferences upsert with voice tone and writing style
+
+#### Frontend Pages (6 New Pages)
+- `/dashboard/email` — Unified inbox with folder sidebar, AI category labels, search, batch select, real estate-contextual mock emails
+- `/dashboard/email/compose` — Rich compose form with From account selector, Cc/Bcc fields, formatting toolbar, AI Assist panel, template picker, schedule send
+- `/dashboard/email/thread/[id]` — Threaded conversation view with AI summary card, expandable messages, attachments, and quick reply actions
+- `/dashboard/email/templates` — Template management with search, category filters, variable support, usage analytics, and CRUD actions
+- `/dashboard/email/rules` — Rule management with condition/action builders, priority ordering, enable/disable toggles, and match counts
+- `/dashboard/email/settings` — Account connections, AI writing preferences, notification settings, and signature editor
+
+#### Navigation & Integration
+- Added Mail icon and "Email" entry to dashboard sidebar navigation
+- Registered email-inbox and email-settings route modules in gateway
+- Added 5 new schema exports to packages/db and gateway schema barrel files
+
 ## [v0.8.0] - 2026-02-15
 
 ### Added — Phase 8: Social Marketing

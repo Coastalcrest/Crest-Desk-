@@ -1,0 +1,26 @@
+import { pgTable, uuid, text, timestamp, varchar, jsonb, boolean } from 'drizzle-orm/pg-core';
+
+export const emailAccounts = pgTable('email_accounts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull(),
+  agentId: uuid('agent_id').notNull(),
+  provider: varchar('provider', { length: 30 }).notNull(),
+  emailAddress: varchar('email_address', { length: 255 }).notNull(),
+  displayName: varchar('display_name', { length: 200 }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+  scopes: jsonb('scopes'),
+  imapHost: varchar('imap_host', { length: 200 }),
+  imapPort: varchar('imap_port', { length: 10 }),
+  smtpHost: varchar('smtp_host', { length: 200 }),
+  smtpPort: varchar('smtp_port', { length: 10 }),
+  isPrimary: boolean('is_primary').default(false),
+  isActive: boolean('is_active').default(true),
+  lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
+  syncStatus: varchar('sync_status', { length: 20 }).default('idle'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+});

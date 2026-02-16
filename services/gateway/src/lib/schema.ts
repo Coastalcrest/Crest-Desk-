@@ -47,3 +47,8 @@ export { socialPosts } from '../../../../packages/db/src/schema/social-posts';
 export { socialEngagement } from '../../../../packages/db/src/schema/social-engagement';
 export { socialContentRules } from '../../../../packages/db/src/schema/social-content-rules';
 export { socialCampaigns } from '../../../../packages/db/src/schema/social-campaigns';
+export { emailAccounts } from '../../../../packages/db/src/schema/email-accounts';
+export { emails } from '../../../../packages/db/src/schema/emails';
+export { emailTemplates } from '../../../../packages/db/src/schema/email-templates';
+export { emailRules } from '../../../../packages/db/src/schema/email-rules';
+export { emailAiPreferences } from '../../../../packages/db/src/schema/email-ai-preferences';

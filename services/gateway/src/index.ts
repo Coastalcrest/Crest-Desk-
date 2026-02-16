@@ -39,6 +39,8 @@ import mediaRoutes from './routes/media';
 import assetLibraryRoutes from './routes/asset-library';
 import socialPostsRoutes from './routes/social-posts';
 import socialAnalyticsRoutes from './routes/social-analytics';
+import emailInboxRoutes from './routes/email-inbox';
+import emailSettingsRoutes from './routes/email-settings';
 
 const app = express();
 
@@ -102,6 +104,8 @@ app.use('/api/v1/media', mediaRoutes);
 app.use('/api/v1/asset-library', assetLibraryRoutes);
 app.use('/api/v1/social-posts', socialPostsRoutes);
 app.use('/api/v1/social-analytics', socialAnalyticsRoutes);
+app.use('/api/v1/email-inbox', emailInboxRoutes);
+app.use('/api/v1/email-settings', emailSettingsRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

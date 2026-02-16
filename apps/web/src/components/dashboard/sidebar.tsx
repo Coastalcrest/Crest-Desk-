@@ -23,6 +23,7 @@ import {
   Kanban,
   DollarSign,
   Wand2,
+  Mail,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +63,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
   { label: 'Finance', href: '/dashboard/finance', icon: DollarSign },
   { label: 'Media Studio', href: '/dashboard/media', icon: Wand2 },
+  { label: 'Email', href: '/dashboard/email', icon: Mail },
   { label: '', href: '', icon: null, separator: true },
   { label: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
   { label: 'Social Media', href: '/dashboard/social', icon: Share2 },

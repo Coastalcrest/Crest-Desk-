@@ -47,3 +47,8 @@ export { socialPosts } from './social-posts';
 export { socialEngagement } from './social-engagement';
 export { socialContentRules } from './social-content-rules';
 export { socialCampaigns } from './social-campaigns';
+export { emailAccounts } from './email-accounts';
+export { emails } from './emails';
+export { emailTemplates } from './email-templates';
+export { emailRules } from './email-rules';
+export { emailAiPreferences } from './email-ai-preferences';
