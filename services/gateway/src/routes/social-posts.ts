@@ -12,6 +12,7 @@ import {
   generatePostSchema,
   listPostsQuery,
 } from '../schemas';
+import { sendData, sendPaginated, sendError } from '../lib/response';
 
 const router = Router();
 router.use(requireAuth);
@@ -20,8 +21,8 @@ router.use(requireAuth);
 router.get("/", validateQuery(listPostsQuery), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const { page, limit, agentId, platform, postType, status, transactionId, scheduledFrom, scheduledTo, sortBy } = req.query as any;
-    const offset = (page - 1) * limit;
+    const { page, pageSize, agentId, platform, postType, status, transactionId, scheduledFrom, scheduledTo, sortBy } = req.query as any;
+    const offset = (page - 1) * pageSize;
 
     const conditions = [
       eq(schema.socialPosts.tenantId, tenantId),
@@ -44,13 +45,13 @@ router.get("/", validateQuery(listPostsQuery), async (req: Request, res: Respons
     const [posts, countRes] = await withTenantContext(tenantId, async (tx) => {
       const rows = await tx.select().from(schema.socialPosts)
         .where(and(...conditions)).orderBy(orderClause)
-        .limit(limit).offset(offset);
+        .limit(pageSize).offset(offset);
       const cr = await tx.select({ total: sql`count(*)::int` })
         .from(schema.socialPosts).where(and(...conditions));
       return [rows, cr];
     });
     const total = (countRes[0]?.total as number) ?? 0;
-    return res.json({ data: posts, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    sendPaginated(res, posts, { page, pageSize, total });
   } catch (err) {
     console.error("List social posts error:", err);
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list social posts" } });
@@ -476,8 +477,8 @@ router.get("/approval-queue", requireRole("managing_broker"), async (req: Reques
   try {
     const { tenantId } = req.user!;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
-    const offset = (page - 1) * limit;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || parseInt(req.query.limit as string) || 25, 100);
+    const offset = (page - 1) * pageSize;
     const conditions = [
       eq(schema.socialPosts.tenantId, tenantId),
       eq(schema.socialPosts.status, "pending_approval"),
@@ -486,13 +487,13 @@ router.get("/approval-queue", requireRole("managing_broker"), async (req: Reques
     const [posts, countRes] = await withTenantContext(tenantId, async (tx) => {
       const rows = await tx.select().from(schema.socialPosts)
         .where(and(...conditions)).orderBy(asc(schema.socialPosts.createdAt))
-        .limit(limit).offset(offset);
+        .limit(pageSize).offset(offset);
       const cr = await tx.select({ total: sql`count(*)::int` })
         .from(schema.socialPosts).where(and(...conditions));
       return [rows, cr];
     });
     const total = (countRes[0]?.total as number) ?? 0;
-    return res.json({ data: posts, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    sendPaginated(res, posts, { page, pageSize, total });
   } catch (err) {
     console.error("Approval queue error:", err);
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get approval queue" } });

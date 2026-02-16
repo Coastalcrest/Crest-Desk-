@@ -7,6 +7,7 @@ import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
 import { validateBody, validateQuery } from '../middleware/validate';
 import { createTransactionSchema, updateTransactionSchema, listTransactionsQuery } from '../schemas/transactions';
+import { sendData, sendPaginated, sendError } from '../lib/response';
 
 const router = Router();
 
@@ -40,10 +41,10 @@ router.post('/', validateBody(createTransactionSchema), async (req: Request, res
 
     logAudit({ tenantId, userId, action: 'transaction.create', resourceType: 'transaction', resourceId: txn.id, details: { propertyAddress, propertyState }, ipAddress: req.ip, userAgent: req.headers['user-agent'] });
 
-    return res.status(201).json(txn);
+    sendData(res, txn, 201);
   } catch (err) {
     console.error('Create transaction error:', err);
-    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create transaction' } });
+    sendError(res, 500, 'INTERNAL_ERROR', 'Failed to create transaction');
   }
 });
 
@@ -51,8 +52,8 @@ router.post('/', validateBody(createTransactionSchema), async (req: Request, res
 router.get('/', validateQuery(listTransactionsQuery), async (req: Request, res: Response) => {
   try {
     const { tenantId } = req.user!;
-    const { page, limit, search, status, state } = req.query as any;
-    const offset = (page - 1) * limit;
+    const { page, pageSize, search, status, state } = req.query as any;
+    const offset = (page - 1) * pageSize;
 
     const conditions = [
       eq(schema.transactions.tenantId, tenantId),
@@ -73,7 +74,7 @@ router.get('/', validateQuery(listTransactionsQuery), async (req: Request, res: 
       const txns = await tx.select().from(schema.transactions)
         .where(and(...conditions))
         .orderBy(desc(schema.transactions.createdAt))
-        .limit(limit)
+        .limit(pageSize)
         .offset(offset);
 
       const countResult = await tx.select({ total: sql<number>`count(*)::int` })
@@ -83,10 +84,10 @@ router.get('/', validateQuery(listTransactionsQuery), async (req: Request, res: 
       return [txns, countResult];
     });
 
-    return res.json({ data: transactions, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    sendPaginated(res, transactions, { page, pageSize, total });
   } catch (err) {
     console.error('List transactions error:', err);
-    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list transactions' } });
+    sendError(res, 500, 'INTERNAL_ERROR', 'Failed to list transactions');
   }
 });
 
@@ -106,13 +107,13 @@ router.get('/:id', async (req: Request, res: Response) => {
     });
 
     if (!txn) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Transaction not found' } });
+      return sendError(res, 404, 'NOT_FOUND', 'Transaction not found');
     }
 
-    return res.json(txn);
+    sendData(res, txn);
   } catch (err) {
     console.error('Get transaction error:', err);
-    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get transaction' } });
+    sendError(res, 500, 'INTERNAL_ERROR', 'Failed to get transaction');
   }
 });
 
@@ -135,7 +136,7 @@ router.patch('/:id', validateBody(updateTransactionSchema), async (req: Request,
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'No valid fields to update' } });
+      return sendError(res, 400, 'VALIDATION_ERROR', 'No valid fields to update');
     }
 
     const [txn] = await withTenantContext(tenantId, async (tx) => {
@@ -150,15 +151,15 @@ router.patch('/:id', validateBody(updateTransactionSchema), async (req: Request,
     });
 
     if (!txn) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Transaction not found' } });
+      return sendError(res, 404, 'NOT_FOUND', 'Transaction not found');
     }
 
     logAudit({ tenantId, userId, action: 'transaction.update', resourceType: 'transaction', resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers['user-agent'] });
 
-    return res.json(txn);
+    sendData(res, txn);
   } catch (err) {
     console.error('Update transaction error:', err);
-    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update transaction' } });
+    sendError(res, 500, 'INTERNAL_ERROR', 'Failed to update transaction');
   }
 });
 
@@ -180,7 +181,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     });
 
     if (!txn) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Transaction not found' } });
+      return sendError(res, 404, 'NOT_FOUND', 'Transaction not found');
     }
 
     logAudit({ tenantId, userId, action: 'transaction.delete', resourceType: 'transaction', resourceId: id, details: {}, ipAddress: req.ip, userAgent: req.headers['user-agent'] });
@@ -188,7 +189,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     return res.status(204).send();
   } catch (err) {
     console.error('Delete transaction error:', err);
-    return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete transaction' } });
+    sendError(res, 500, 'INTERNAL_ERROR', 'Failed to delete transaction');
   }
 });
 

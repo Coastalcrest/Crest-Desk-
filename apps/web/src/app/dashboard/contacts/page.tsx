@@ -24,7 +24,7 @@ import {
   FileSpreadsheet,
   MapPin,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, apiPaginated, type PaginatedResponse } from '@/lib/api';
 import { addToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -44,18 +44,11 @@ interface Contact {
   leadScore: number | null;
   lastContactedAt: string | null;
   nextFollowUpAt: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zipCode: string | null;
+  mailingAddress: string | null;
+  mailingCity: string | null;
+  mailingState: string | null;
+  mailingZip: string | null;
   createdAt: string;
-}
-
-interface ContactsResponse {
-  contacts: Contact[];
-  total: number;
-  page: number;
-  pageSize: number;
 }
 
 interface ContactStats {
@@ -311,10 +304,10 @@ function AddContactModal({ open, onClose }: { open: boolean; onClose: () => void
     phone: '',
     contactType: 'lead' as Contact['contactType'],
     source: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
+    mailingAddress: '',
+    mailingCity: '',
+    mailingState: '',
+    mailingZip: '',
   });
 
   const createMutation = useMutation({
@@ -330,7 +323,7 @@ function AddContactModal({ open, onClose }: { open: boolean; onClose: () => void
       onClose();
       setForm({
         firstName: '', lastName: '', email: '', phone: '',
-        contactType: 'lead', source: '', address: '', city: '', state: '', zipCode: '',
+        contactType: 'lead', source: '', mailingAddress: '', mailingCity: '', mailingState: '', mailingZip: '',
       });
     },
     onError: (err: Error) => {
@@ -445,11 +438,11 @@ function AddContactModal({ open, onClose }: { open: boolean; onClose: () => void
 
           {/* Address */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Address</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Mailing Address</label>
             <input
               type="text"
-              value={form.address}
-              onChange={(e) => updateField('address', e.target.value)}
+              value={form.mailingAddress}
+              onChange={(e) => updateField('mailingAddress', e.target.value)}
               placeholder="123 Main Street"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
             />
@@ -460,16 +453,16 @@ function AddContactModal({ open, onClose }: { open: boolean; onClose: () => void
               <label className="mb-1 block text-sm font-medium text-gray-700">City</label>
               <input
                 type="text"
-                value={form.city}
-                onChange={(e) => updateField('city', e.target.value)}
+                value={form.mailingCity}
+                onChange={(e) => updateField('mailingCity', e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
               />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">State</label>
               <select
-                value={form.state}
-                onChange={(e) => updateField('state', e.target.value)}
+                value={form.mailingState}
+                onChange={(e) => updateField('mailingState', e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
               >
                 <option value="">Select</option>
@@ -482,8 +475,8 @@ function AddContactModal({ open, onClose }: { open: boolean; onClose: () => void
               <label className="mb-1 block text-sm font-medium text-gray-700">ZIP</label>
               <input
                 type="text"
-                value={form.zipCode}
-                onChange={(e) => updateField('zipCode', e.target.value)}
+                value={form.mailingZip}
+                onChange={(e) => updateField('mailingZip', e.target.value)}
                 maxLength={10}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
               />
@@ -612,9 +605,9 @@ export default function ContactsPage() {
   if (sourceFilter !== 'All Sources') queryParams.set('source', sourceFilter);
   if (tagFilter) queryParams.set('tag', tagFilter);
 
-  const { data, isLoading, error } = useQuery<ContactsResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['contacts', page, search, typeFilter, sourceFilter, tagFilter],
-    queryFn: () => api<ContactsResponse>(`/contacts?${queryParams.toString()}`),
+    queryFn: () => apiPaginated<Contact>(`/contacts?${queryParams.toString()}`),
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<ContactStats>({
@@ -622,9 +615,9 @@ export default function ContactsPage() {
     queryFn: () => api<ContactStats>('/contacts/stats'),
   });
 
-  const contacts = data?.contacts ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const contacts = data?.data ?? [];
+  const total = data?.pagination?.total ?? 0;
+  const totalPages = data?.pagination?.totalPages ?? 1;
 
   return (
     <div className="space-y-6">

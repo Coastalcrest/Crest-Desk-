@@ -7,11 +7,19 @@ import { z } from 'zod';
 /** UUID v4 format */
 export const uuidSchema = z.string().uuid('Must be a valid UUID');
 
-/** Pagination query params */
+/**
+ * Pagination query params.
+ * Accepts both `pageSize` (preferred) and `limit` as aliases.
+ * The validated output always uses `pageSize`.
+ */
 export const paginationQuery = z.object({
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(25),
-});
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+}).transform((data) => ({
+  page: data.page,
+  pageSize: data.limit ?? data.pageSize,
+}));
 
 /** Common search param */
 export const searchQuery = z.object({

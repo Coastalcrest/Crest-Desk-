@@ -8,7 +8,6 @@ import {
   Plus,
   MapPin,
   Calendar,
-  FileText,
   DollarSign,
   Users,
   ChevronLeft,
@@ -18,7 +17,7 @@ import {
   Home,
   AlertCircle,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, apiPaginated, type PaginatedResponse } from '@/lib/api';
 import { addToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -28,24 +27,15 @@ import { cn } from '@/lib/utils';
 interface Transaction {
   id: string;
   propertyAddress: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  propertyState: string;
   status: 'draft' | 'active' | 'under_contract' | 'pending' | 'closed' | 'cancelled';
-  transactionType: 'purchase' | 'listing' | 'dual';
+  transactionType: 'purchase' | 'listing' | 'dual' | 'lease' | 'investment';
   buyerName: string | null;
   sellerName: string | null;
-  listPrice: number | null;
+  listPrice: string | null;       // DB stores as numeric string
+  purchasePrice: string | null;
   closingDate: string | null;
-  documentCount: number;
   createdAt: string;
-}
-
-interface TransactionsResponse {
-  transactions: Transaction[];
-  total: number;
-  page: number;
-  pageSize: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,9 +72,11 @@ const PAGE_SIZE = 12;
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatCurrency(amount: number | null): string {
-  if (amount === null) return '--';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
+function formatCurrency(amount: string | number | null): string {
+  if (amount === null || amount === undefined) return '--';
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(num)) return '--';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(num);
 }
 
 function formatDate(iso: string | null): string {
@@ -104,9 +96,7 @@ function NewTransactionModal({ open, onClose }: { open: boolean; onClose: () => 
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     propertyAddress: '',
-    city: '',
-    state: '',
-    zipCode: '',
+    propertyState: '',
     transactionType: 'purchase' as 'purchase' | 'listing' | 'dual',
     buyerName: '',
     sellerName: '',
@@ -174,40 +164,19 @@ function NewTransactionModal({ open, onClose }: { open: boolean; onClose: () => 
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">City</label>
-              <input
-                type="text"
-                value={form.city}
-                onChange={(e) => updateField('city', e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">State *</label>
-              <select
-                required
-                value={form.state}
-                onChange={(e) => updateField('state', e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
-              >
-                <option value="">Select</option>
-                {US_STATES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">ZIP</label>
-              <input
-                type="text"
-                value={form.zipCode}
-                onChange={(e) => updateField('zipCode', e.target.value)}
-                maxLength={10}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
-              />
-            </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Property State *</label>
+            <select
+              required
+              value={form.propertyState}
+              onChange={(e) => updateField('propertyState', e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]"
+            >
+              <option value="">Select State</option>
+              {US_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
 
           {/* Transaction Type */}
@@ -312,7 +281,7 @@ function TransactionCard({ txn, onClick }: { txn: Transaction; onClick: () => vo
               {txn.propertyAddress}
             </h3>
             <p className="text-xs text-gray-500">
-              {[txn.city, txn.state, txn.zipCode].filter(Boolean).join(', ')}
+              {txn.propertyState}
             </p>
           </div>
         </div>
@@ -351,9 +320,8 @@ function TransactionCard({ txn, onClick }: { txn: Transaction; onClick: () => vo
             </span>
           )}
         </div>
-        <span className="flex items-center gap-1 text-xs text-gray-500">
-          <FileText className="h-3 w-3" />
-          {txn.documentCount} docs
+        <span className="text-xs text-gray-500">
+          {formatStatusLabel(txn.transactionType)}
         </span>
       </div>
     </div>
@@ -378,14 +346,14 @@ export default function TransactionsPage() {
   if (search) queryParams.set('search', search);
   if (statusFilter !== 'all') queryParams.set('status', statusFilter);
 
-  const { data, isLoading, error } = useQuery<TransactionsResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['transactions', page, search, statusFilter],
-    queryFn: () => api<TransactionsResponse>(`/transactions?${queryParams.toString()}`),
+    queryFn: () => apiPaginated<Transaction>(`/transactions?${queryParams.toString()}`),
   });
 
-  const transactions = data?.transactions ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const transactions = data?.data ?? [];
+  const total = data?.pagination?.total ?? 0;
+  const totalPages = data?.pagination?.totalPages ?? 1;
 
   return (
     <div className="space-y-6">

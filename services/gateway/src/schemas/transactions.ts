@@ -5,7 +5,7 @@ import { paginationQuery, searchQuery, stateCode, dateString } from './common';
 //  Transaction schemas                                                //
 // ------------------------------------------------------------------ //
 
-export const transactionTypes = ['buy', 'sell', 'lease', 'investment'] as const;
+export const transactionTypes = ['purchase', 'listing', 'dual', 'lease', 'investment'] as const;
 export const transactionStatuses = ['draft', 'active', 'pending', 'under_contract', 'closed', 'cancelled', 'expired'] as const;
 
 export const createTransactionSchema = z.object({

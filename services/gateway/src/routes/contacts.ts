@@ -14,6 +14,7 @@ import {
   logActivitySchema,
   enrollContactSchema,
 } from '../schemas';
+import { sendData, sendPaginated, sendError } from '../lib/response';
 
 const ROLE_LEVEL: Record<string, number> = { agent: 0, managing_broker: 1, principal_broker: 2, owner: 3 };
 function hasMinRole(userRole: string, minRole: string): boolean {
@@ -29,8 +30,8 @@ router.use(requireAuth);
 router.get('/', validateQuery(listContactsQuery), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const { page, limit, search, contactType, source, tag, ownerId, sortBy } = req.query as any;
-    const offset = (page - 1) * limit;
+    const { page, pageSize, search, contactType, source, tag, ownerId, sortBy } = req.query as any;
+    const offset = (page - 1) * pageSize;
 
     const conditions = [
       eq(schema.contacts.tenantId, tenantId),
@@ -103,7 +104,7 @@ router.get('/', validateQuery(listContactsQuery), async (req: Request, res: Resp
         .from(schema.contacts)
         .where(and(...conditions))
         .orderBy(orderClause)
-        .limit(limit)
+        .limit(pageSize)
         .offset(offset);
 
       const countResult = await tx
@@ -114,10 +115,7 @@ router.get('/', validateQuery(listContactsQuery), async (req: Request, res: Resp
       return [rows, countResult];
     });
 
-    return res.json({
-      data: contacts,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    });
+    sendPaginated(res, contacts, { page, pageSize, total });
   } catch (err) {
     console.error('List contacts error:', err);
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list contacts' } });
@@ -444,8 +442,8 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
     const { tenantId } = req.user!;
     const { id } = req.params;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
-    const offset = (page - 1) * limit;
+    const pageSize = Math.min(parseInt(req.query.pageSize as string) || parseInt(req.query.limit as string) || 25, 100);
+    const offset = (page - 1) * pageSize;
     const activityType = req.query.activityType as string;
 
     const conditions = [
@@ -461,7 +459,7 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
       const rows = await tx.select().from(schema.contactActivities)
         .where(and(...conditions))
         .orderBy(desc(schema.contactActivities.createdAt))
-        .limit(limit)
+        .limit(pageSize)
         .offset(offset);
 
       const countResult = await tx
@@ -472,10 +470,7 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
       return [rows, countResult];
     });
 
-    return res.json({
-      data: activities,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    });
+    sendPaginated(res, activities, { page, pageSize, total });
   } catch (err) {
     console.error('List activities error:', err);
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list activities' } });

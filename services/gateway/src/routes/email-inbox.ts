@@ -11,6 +11,7 @@ import {
   aiReplySchema,
   listEmailsQuery,
 } from '../schemas';
+import { sendData, sendPaginated, sendError } from '../lib/response';
 
 const router = Router();
 router.use(requireAuth);
@@ -19,8 +20,8 @@ router.use(requireAuth);
 router.get("/", validateQuery(listEmailsQuery), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const { page, limit, folder, accountId, search, isRead, isStarred, contactId, dealId } = req.query as any;
-    const offset = (page - 1) * limit;
+    const { page, pageSize, folder, accountId, search, isRead, isStarred, contactId, dealId } = req.query as any;
+    const offset = (page - 1) * pageSize;
 
     const conditions = [
       eq(schema.emails.tenantId, tenantId),
@@ -51,14 +52,14 @@ router.get("/", validateQuery(listEmailsQuery), async (req: Request, res: Respon
       const rows = await tx.select().from(schema.emails)
         .where(and(...conditions))
         .orderBy(desc(schema.emails.receivedAt))
-        .limit(limit).offset(offset);
+        .limit(pageSize).offset(offset);
       const cr = await tx.select({ total: sql`count(*)::int` })
         .from(schema.emails).where(and(...conditions));
       return [rows, cr];
     });
 
     const total = (countRes[0]?.total as number) ?? 0;
-    return res.json({ data: emails, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+    sendPaginated(res, emails, { page, pageSize, total });
   } catch (err) {
     console.error("List emails error:", err);
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list emails" } });

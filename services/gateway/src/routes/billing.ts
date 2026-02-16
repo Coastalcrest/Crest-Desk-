@@ -13,6 +13,7 @@ import {
   markPaidSchema,
   generateInvoicesSchema,
 } from '../schemas';
+import { sendData, sendPaginated, sendError } from '../lib/response';
 
 const router = Router();
 
@@ -79,8 +80,8 @@ router.get('/outstanding', requireRole('managing_broker'), async (req: Request, 
 router.get('/', validateQuery(listBillingQuery), async (req: Request, res: Response) => {
   try {
     const { tenantId } = req.user!;
-    const { page, limit, agentId, billingType, paidStatus, dateFrom, dateTo } = req.query as any;
-    const offset = (page - 1) * limit;
+    const { page, pageSize, agentId, billingType, paidStatus, dateFrom, dateTo } = req.query as any;
+    const offset = (page - 1) * pageSize;
 
     const conditions = [
       eq(schema.agentBilling.tenantId, tenantId),
@@ -126,7 +127,7 @@ router.get('/', validateQuery(listBillingQuery), async (req: Request, res: Respo
         .innerJoin(schema.users, eq(schema.agentBilling.agentId, schema.users.id))
         .where(and(...conditions))
         .orderBy(desc(schema.agentBilling.invoiceDate))
-        .limit(limit)
+        .limit(pageSize)
         .offset(offset);
 
       const countResult = await tx
@@ -137,10 +138,7 @@ router.get('/', validateQuery(listBillingQuery), async (req: Request, res: Respo
       return [rows, countResult];
     });
 
-    return res.json({
-      data: records,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    });
+    sendPaginated(res, records, { page, pageSize, total });
   } catch (err) {
     console.error('List billing error:', err);
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list billing records' } });
