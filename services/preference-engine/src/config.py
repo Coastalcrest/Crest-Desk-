@@ -1,17 +1,17 @@
-"""Service configuration from environment variables."""
+"""Configuration for the preference-engine service."""
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Service settings loaded from environment."""
+    """Application settings loaded from environment variables."""
 
-    debug: bool = True
-    database_url: str = "postgresql+asyncpg://crestdesk:crestdesk_dev@localhost:5432/crestdesk"
-    redis_url: str = "redis://localhost:6379"
-    log_level: str = "INFO"
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/crestdesk"
+    redis_url: str = "redis://localhost:6379/0"
+    port: int = 8000
+    debug: bool = False
+    log_level: str = "info"
 
-    class Config:
-        env_prefix = "CRESTDESK_"
+    model_config = {"env_prefix": "CRESTDESK_"}
 
 
 settings = Settings()

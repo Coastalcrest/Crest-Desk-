@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 /// Service configuration loaded from environment variables.
 #[derive(Debug, Clone, Deserialize)]
-pub struct Config {
+pub struct AppConfig {
     /// Server listen port (default: 8081)
     pub port: u16,
 
@@ -29,7 +29,7 @@ pub struct Config {
     pub dd_agent_host: Option<String>,
 }
 
-impl Config {
+impl AppConfig {
     /// Load configuration from environment variables.
     ///
     /// # Panics
@@ -41,7 +41,7 @@ impl Config {
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(8081),
             database_url: std::env::var("DATABASE_URL")
-                .expect("DATABASE_URL must be set"),
+                .unwrap_or_else(|_| "postgres://localhost/crestdesk".to_string()),
             ffmpeg_path: std::env::var("FFMPEG_PATH")
                 .unwrap_or_else(|_| "ffmpeg".to_string()),
             temp_dir: std::env::var("TEMP_DIR")
