@@ -25,8 +25,46 @@ import { addToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
-// Types
+// Types — aligned with GET /deals and GET /deals/stats API responses
 // ---------------------------------------------------------------------------
+
+/** A single deal row from GET /deals (flat, with joined stage + contact). */
+interface ApiDeal {
+  id: string;
+  tenantId: string;
+  contactId: string;
+  ownerUserId: string;
+  pipelineStageId: string;
+  dealName: string;
+  dealValue: string | null; // numeric comes back as string
+  expectedCloseDate: string | null;
+  probability: number | null;
+  dealType: string;
+  propertyAddress: string | null;
+  propertyState: string | null;
+  wonAt: string | null;
+  lostAt: string | null;
+  createdAt: string;
+  contactFirstName: string | null;
+  contactLastName: string | null;
+  contactEmail: string | null;
+  stageName: string;
+  stageColor: string;
+  stageOrder: number;
+}
+
+/** Stage row from GET /deals/stages */
+interface ApiStage {
+  id: string;
+  tenantId: string;
+  stageName: string;
+  stageOrder: number;
+  stageColor: string | null;
+  isClosedWon: boolean;
+  isClosedLost: boolean;
+}
+
+/** Normalised deal for the kanban UI. */
 interface Deal {
   id: string;
   name: string;
@@ -35,14 +73,15 @@ interface Deal {
   value: number;
   expectedCloseDate: string | null;
   probability: number;
-  stage: string;
+  stageId: string;
+  stageName: string;
   dealType: string;
   propertyAddress: string | null;
   ownerId: string;
-  ownerName: string;
   createdAt: string;
 }
 
+/** A stage column in the kanban board. */
 interface PipelineStage {
   id: string;
   name: string;
@@ -52,37 +91,55 @@ interface PipelineStage {
   totalValue: number;
 }
 
-interface PipelineResponse {
-  stages: PipelineStage[];
-}
-
 interface PipelineStats {
   totalDeals: number;
-  totalValue: number;
-  weightedForecast: number;
+  totalValue: string;
   wonThisMonth: number;
-  wonThisMonthValue: number;
   lostThisMonth: number;
-  lostThisMonthValue: number;
+  forecast: string;
+  byStage: { stageId: string; stageName: string; stageColor: string; stageOrder: number; dealCount: number; stageValue: string }[];
+}
+
+/** Transform flat API deals + stages into kanban PipelineStage[]. */
+function buildKanban(stages: ApiStage[], deals: ApiDeal[]): PipelineStage[] {
+  const stageMap = new Map<string, PipelineStage>();
+  for (const s of stages) {
+    stageMap.set(s.id, {
+      id: s.id,
+      name: s.stageName,
+      order: s.stageOrder,
+      color: s.stageColor ?? '#6B7280',
+      deals: [],
+      totalValue: 0,
+    });
+  }
+  for (const d of deals) {
+    const col = stageMap.get(d.pipelineStageId);
+    if (!col) continue;
+    const val = d.dealValue ? parseFloat(d.dealValue) : 0;
+    col.deals.push({
+      id: d.id,
+      name: d.dealName,
+      contactId: d.contactId,
+      contactName: [d.contactFirstName, d.contactLastName].filter(Boolean).join(' ') || 'Unknown',
+      value: val,
+      expectedCloseDate: d.expectedCloseDate,
+      probability: d.probability ?? 50,
+      stageId: d.pipelineStageId,
+      stageName: d.stageName,
+      dealType: d.dealType,
+      propertyAddress: d.propertyAddress,
+      ownerId: d.ownerUserId,
+      createdAt: d.createdAt,
+    });
+    col.totalValue += val;
+  }
+  return Array.from(stageMap.values()).sort((a, b) => a.order - b.order);
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const STAGE_COLORS: Record<string, string> = {
-  'New Lead': 'bg-blue-500',
-  'Contacted': 'bg-indigo-500',
-  'Qualified': 'bg-purple-500',
-  'Proposal Sent': 'bg-orange-500',
-  'Negotiation': 'bg-yellow-500',
-  'Under Contract': 'bg-[#2A9D8F]',
-  'Won': 'bg-green-500',
-  'Lost': 'bg-red-500',
-};
-
-const DEFAULT_STAGES = [
-  'New Lead', 'Contacted', 'Qualified', 'Proposal Sent', 'Negotiation', 'Under Contract', 'Won', 'Lost',
-];
 
 const DEAL_TYPES = [
   { value: '', label: 'All Types' },
@@ -95,8 +152,11 @@ const DEAL_TYPES = [
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
+function formatCurrency(amount: string | number | null | undefined): string {
+  if (amount === null || amount === undefined) return '$0';
+  const n = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(n)) return '$0';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
 
 function formatDate(iso: string | null): string {
@@ -121,11 +181,11 @@ function getInitials(name: string): string {
 // ---------------------------------------------------------------------------
 function StatsBar({ stats, isLoading }: { stats: PipelineStats | undefined; isLoading: boolean }) {
   const cards = [
-    { label: 'Total Deals', value: stats?.totalDeals ?? 0, format: 'number', icon: BarChart3, color: 'text-[#1B3A5C]', bgColor: 'bg-[#1B3A5C]/10' },
-    { label: 'Total Value', value: stats?.totalValue ?? 0, format: 'currency', icon: DollarSign, color: 'text-[#2A9D8F]', bgColor: 'bg-[#2A9D8F]/10' },
-    { label: 'Weighted Forecast', value: stats?.weightedForecast ?? 0, format: 'currency', icon: TrendingUp, color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
-    { label: 'Won This Month', value: stats?.wonThisMonth ?? 0, format: 'number', icon: Trophy, color: 'text-green-600', bgColor: 'bg-green-50', subValue: stats?.wonThisMonthValue },
-    { label: 'Lost This Month', value: stats?.lostThisMonth ?? 0, format: 'number', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', subValue: stats?.lostThisMonthValue },
+    { label: 'Total Deals', value: stats?.totalDeals ?? 0, format: 'number' as const, icon: BarChart3, color: 'text-[#1B3A5C]', bgColor: 'bg-[#1B3A5C]/10' },
+    { label: 'Total Value', value: stats?.totalValue ?? '0', format: 'currency' as const, icon: DollarSign, color: 'text-[#2A9D8F]', bgColor: 'bg-[#2A9D8F]/10' },
+    { label: 'Weighted Forecast', value: stats?.forecast ?? '0', format: 'currency' as const, icon: TrendingUp, color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
+    { label: 'Won This Month', value: stats?.wonThisMonth ?? 0, format: 'number' as const, icon: Trophy, color: 'text-green-600', bgColor: 'bg-green-50' },
+    { label: 'Lost This Month', value: stats?.lostThisMonth ?? 0, format: 'number' as const, icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50' },
   ];
 
   return (
@@ -143,14 +203,9 @@ function StatsBar({ stats, isLoading }: { stats: PipelineStats | undefined; isLo
                 {isLoading ? (
                   <div className="mt-1 h-5 w-16 animate-pulse rounded bg-gray-200" />
                 ) : (
-                  <>
-                    <p className="text-lg font-bold text-gray-900">
-                      {card.format === 'currency' ? formatCurrency(card.value) : card.value.toLocaleString()}
-                    </p>
-                    {card.subValue !== undefined && card.subValue > 0 && (
-                      <p className="text-xs text-gray-400">{formatCurrency(card.subValue)}</p>
-                    )}
-                  </>
+                  <p className="text-lg font-bold text-gray-900">
+                    {card.format === 'currency' ? formatCurrency(card.value) : typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
+                  </p>
                 )}
               </div>
             </div>
@@ -164,7 +219,7 @@ function StatsBar({ stats, isLoading }: { stats: PipelineStats | undefined; isLo
 // ---------------------------------------------------------------------------
 // Deal Card
 // ---------------------------------------------------------------------------
-function DealCard({ deal, stages, onMove }: { deal: Deal; stages: string[]; onMove: (dealId: string, stage: string) => void }) {
+function DealCard({ deal, stages, onMove }: { deal: Deal; stages: { id: string; name: string }[]; onMove: (dealId: string, stageId: string) => void }) {
   const [moveOpen, setMoveOpen] = useState(false);
   const daysLeft = daysUntil(deal.expectedCloseDate);
 
@@ -206,12 +261,9 @@ function DealCard({ deal, stages, onMove }: { deal: Deal; stages: string[]; onMo
         </span>
       </div>
 
-      {/* Owner */}
-      <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1B3A5C] text-xs font-medium text-white">
-          {getInitials(deal.ownerName)}
-        </div>
-        <span className="truncate text-xs text-gray-500">{deal.ownerName}</span>
+      {/* Deal Type */}
+      <div className="mb-3">
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 capitalize">{deal.dealType}</span>
       </div>
 
       {/* Property Address */}
@@ -234,14 +286,14 @@ function DealCard({ deal, stages, onMove }: { deal: Deal; stages: string[]; onMo
 
         {moveOpen && (
           <div className="absolute left-0 right-0 z-20 mt-1 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-            {stages.filter((s) => s !== deal.stage).map((stage) => (
+            {stages.filter((s) => s.id !== deal.stageId).map((s) => (
               <button
-                key={stage}
-                onClick={() => { onMove(deal.id, stage); setMoveOpen(false); }}
+                key={s.id}
+                onClick={() => { onMove(deal.id, s.id); setMoveOpen(false); }}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
               >
-                <div className={cn('h-2 w-2 rounded-full', STAGE_COLORS[stage] ?? 'bg-gray-400')} />
-                {stage}
+                <div className="h-2 w-2 rounded-full bg-gray-400" />
+                {s.name}
               </button>
             ))}
           </div>
@@ -260,16 +312,14 @@ function KanbanColumn({
   onMoveDeal,
 }: {
   stage: PipelineStage;
-  allStages: string[];
-  onMoveDeal: (dealId: string, newStage: string) => void;
+  allStages: { id: string; name: string }[];
+  onMoveDeal: (dealId: string, stageId: string) => void;
 }) {
-  const stageColor = STAGE_COLORS[stage.name] ?? 'bg-gray-400';
-
   return (
     <div className="flex w-72 flex-shrink-0 flex-col rounded-lg border border-gray-200 bg-gray-50">
       {/* Column header */}
       <div className="border-b border-gray-200 p-3">
-        <div className={cn('mb-2 h-1 w-full rounded-full', stageColor)} />
+        <div className="mb-2 h-1 w-full rounded-full" style={{ backgroundColor: stage.color || '#6B7280' }} />
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900">{stage.name}</h3>
           <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-600 shadow-sm">
@@ -324,11 +374,14 @@ function NewDealModal({ open, onClose }: { open: boolean; onClose: () => void })
   const [showContactResults, setShowContactResults] = useState(false);
 
   const searchContactsMutation = useMutation({
-    mutationFn: (query: string) =>
-      api<{ contacts: { id: string; firstName: string; lastName: string }[] }>(`/contacts?search=${encodeURIComponent(query)}&pageSize=5`),
-    onSuccess: (data) => {
+    mutationFn: async (query: string) => {
+      const res = await api<{ id: string; firstName: string; lastName: string }[]>(`/contacts?search=${encodeURIComponent(query)}&pageSize=5`);
+      // api() unwraps { data: [...] } → [...], so res is the array
+      return Array.isArray(res) ? res : [];
+    },
+    onSuccess: (contacts) => {
       setContactResults(
-        data.contacts.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}` })),
+        contacts.map((c) => ({ id: c.id, name: `${c.firstName} ${c.lastName}` })),
       );
       setShowContactResults(true);
     },
@@ -339,13 +392,12 @@ function NewDealModal({ open, onClose }: { open: boolean; onClose: () => void })
       api<{ id: string }>('/deals', {
         method: 'POST',
         body: JSON.stringify({
-          name: data.name,
+          dealName: data.name,
           contactId: data.contactId,
-          value: parseFloat(data.value) || 0,
+          dealValue: parseFloat(data.value) || 0,
           expectedCloseDate: data.expectedCloseDate || null,
           dealType: data.dealType,
           propertyAddress: data.propertyAddress || null,
-          stage: data.stage,
         }),
       }),
     onSuccess: () => {
@@ -550,24 +602,37 @@ export default function PipelinePage() {
   const [typeFilter, setTypeFilter] = useState('');
 
   const queryParams = new URLSearchParams();
-  if (agentFilter) queryParams.set('agent', agentFilter);
+  queryParams.set('pageSize', '200');
+  if (agentFilter) queryParams.set('ownerId', agentFilter);
   if (typeFilter) queryParams.set('dealType', typeFilter);
 
-  const { data, isLoading, error } = useQuery<PipelineResponse>({
-    queryKey: ['pipeline', agentFilter, typeFilter],
-    queryFn: () => api<PipelineResponse>(`/pipeline?${queryParams.toString()}`),
+  // Fetch pipeline stages
+  const { data: stagesData } = useQuery<ApiStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api<ApiStage[]>('/deals/stages'),
   });
 
+  // Fetch deals (flat list)
+  const { data: dealsData, isLoading, error } = useQuery<ApiDeal[]>({
+    queryKey: ['pipeline', agentFilter, typeFilter],
+    queryFn: () => api<ApiDeal[]>(`/deals?${queryParams.toString()}`),
+  });
+
+  // Fetch aggregate stats
   const { data: stats, isLoading: statsLoading } = useQuery<PipelineStats>({
     queryKey: ['pipeline-stats'],
-    queryFn: () => api<PipelineStats>('/pipeline/stats'),
+    queryFn: () => api<PipelineStats>('/deals/stats'),
   });
 
+  // Build kanban from flat data
+  const stages = buildKanban(stagesData ?? [], dealsData ?? []);
+  const allStageRefs = stages.map((s) => ({ id: s.id, name: s.name }));
+
   const moveDealMutation = useMutation({
-    mutationFn: ({ dealId, stage }: { dealId: string; stage: string }) =>
+    mutationFn: ({ dealId, stageId }: { dealId: string; stageId: string }) =>
       api(`/deals/${dealId}/stage`, {
         method: 'PATCH',
-        body: JSON.stringify({ stage }),
+        body: JSON.stringify({ stageId }),
       }),
     onSuccess: () => {
       addToast({ type: 'success', title: 'Deal moved successfully' });
@@ -579,12 +644,9 @@ export default function PipelinePage() {
     },
   });
 
-  const handleMoveDeal = useCallback((dealId: string, stage: string) => {
-    moveDealMutation.mutate({ dealId, stage });
+  const handleMoveDeal = useCallback((dealId: string, stageId: string) => {
+    moveDealMutation.mutate({ dealId, stageId });
   }, [moveDealMutation]);
-
-  const stages = data?.stages ?? [];
-  const allStageNames = stages.map((s) => s.name);
 
   return (
     <div className="space-y-6">
@@ -672,7 +734,7 @@ export default function PipelinePage() {
               <KanbanColumn
                 key={stage.id}
                 stage={stage}
-                allStages={allStageNames}
+                allStages={allStageRefs}
                 onMoveDeal={handleMoveDeal}
               />
             ))}

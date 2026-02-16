@@ -51,10 +51,10 @@ interface ContactDetail {
   leadScore: number | null;
   lastContactedAt: string | null;
   nextFollowUpAt: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zipCode: string | null;
+  mailingAddress: string | null;
+  mailingCity: string | null;
+  mailingState: string | null;
+  mailingZip: string | null;
   company: string | null;
   title: string | null;
   website: string | null;
@@ -193,14 +193,14 @@ function ContactInfoCard({ contact }: { contact: ContactDetail }) {
         </div>
 
         {/* Address */}
-        {(contact.address || contact.city || contact.state) && (
+        {(contact.mailingAddress || contact.mailingCity || contact.mailingState) && (
           <div>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Address</h4>
             <div className="flex items-start gap-2">
               <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
               <div className="text-sm text-gray-700">
-                {contact.address && <p>{contact.address}</p>}
-                <p>{[contact.city, contact.state, contact.zipCode].filter(Boolean).join(', ')}</p>
+                {contact.mailingAddress && <p>{contact.mailingAddress}</p>}
+                <p>{[contact.mailingCity, contact.mailingState, contact.mailingZip].filter(Boolean).join(', ')}</p>
               </div>
             </div>
           </div>

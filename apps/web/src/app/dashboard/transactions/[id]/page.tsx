@@ -34,17 +34,14 @@ import { cn } from '@/lib/utils';
 interface TransactionDetail {
   id: string;
   propertyAddress: string;
-  city: string;
-  state: string;
-  zipCode: string;
+  propertyState: string;
   status: string;
   transactionType: string;
   buyerName: string | null;
   sellerName: string | null;
-  listPrice: number | null;
-  salePrice: number | null;
+  listPrice: string | null;
+  purchasePrice: string | null;
   closingDate: string | null;
-  listingDate: string | null;
   createdAt: string;
   updatedAt: string;
   documents: TransactionDocument[];
@@ -128,9 +125,11 @@ const TAB_ITEMS = [
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatCurrency(amount: number | null): string {
-  if (amount === null) return '--';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
+function formatCurrency(amount: string | number | null | undefined): string {
+  if (amount === null || amount === undefined) return '--';
+  const n = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(n)) return '--';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
 
 function formatDate(iso: string | null): string {
@@ -550,7 +549,7 @@ export default function TransactionDetailPage() {
             <div>
               <h1 className="text-xl font-bold text-gray-900">{txn.propertyAddress}</h1>
               <p className="mt-0.5 text-sm text-gray-500">
-                {[txn.city, txn.state, txn.zipCode].filter(Boolean).join(', ')}
+                {txn.propertyState} · {txn.transactionType}
               </p>
             </div>
           </div>
@@ -612,12 +611,12 @@ export default function TransactionDetailPage() {
             </dt>
             <dd className="mt-1 text-sm font-medium text-gray-900">{formatCurrency(txn.listPrice)}</dd>
           </div>
-          {txn.salePrice !== null && (
+          {txn.purchasePrice !== null && (
             <div>
               <dt className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-gray-500">
-                <DollarSign className="h-3 w-3" /> Sale Price
+                <DollarSign className="h-3 w-3" /> Purchase Price
               </dt>
-              <dd className="mt-1 text-sm font-medium text-gray-900">{formatCurrency(txn.salePrice)}</dd>
+              <dd className="mt-1 text-sm font-medium text-gray-900">{formatCurrency(txn.purchasePrice)}</dd>
             </div>
           )}
           <div>
@@ -626,14 +625,6 @@ export default function TransactionDetailPage() {
             </dt>
             <dd className="mt-1 text-sm font-medium text-gray-900">{formatDate(txn.closingDate)}</dd>
           </div>
-          {txn.listingDate && (
-            <div>
-              <dt className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-gray-500">
-                <Calendar className="h-3 w-3" /> Listed
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-gray-900">{formatDate(txn.listingDate)}</dd>
-            </div>
-          )}
         </div>
       </div>
 
