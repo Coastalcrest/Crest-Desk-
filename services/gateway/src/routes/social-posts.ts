@@ -5,29 +5,24 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { validateBody, validateQuery } from '../middleware/validate';
+import {
+  createPostSchema,
+  updatePostSchema,
+  generatePostSchema,
+  listPostsQuery,
+} from '../schemas';
 
 const router = Router();
 router.use(requireAuth);
 
-const VALID_PLATFORMS = ['facebook', 'instagram', 'linkedin', 'youtube', 'tiktok', 'twitter', 'google_business'];
-const VALID_POST_TYPES = ['new_listing', 'open_house', 'under_contract', 'price_reduction', 'just_sold', 'testimonial', 'market_update', 'evergreen', 'custom'];
-const VALID_STATUSES = ['draft', 'scheduled', 'published', 'rejected', 'pending_approval'];
-
 // ---------- GET / --- List social posts ---------- //
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", validateQuery(listPostsQuery), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+    const { page, limit, agentId, platform, postType, status, transactionId, scheduledFrom, scheduledTo, sortBy } = req.query as any;
     const offset = (page - 1) * limit;
-    const agentId = req.query.agentId as string;
-    const platform = req.query.platform as string;
-    const postType = req.query.postType as string;
-    const status = req.query.status as string;
-    const transactionId = req.query.transactionId as string;
-    const scheduledFrom = req.query.scheduledFrom as string;
-    const scheduledTo = req.query.scheduledTo as string;
-    const sortBy = req.query.sortBy as string;
+
     const conditions = [
       eq(schema.socialPosts.tenantId, tenantId),
       isNull(schema.socialPosts.deletedAt),
@@ -130,28 +125,21 @@ router.get("/calendar", async (req: Request, res: Response) => {
 });
 
 // ---------- POST / --- Create social post ---------- //
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", validateBody(createPostSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const { socialAccountId, transactionId, postType, platform, content, hashtags, mediaAssetIds, scheduledAt, contentVariations } = req.body;
-    if (!postType || !platform || !content) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "postType, platform, and content are required" } });
-    }
-    if (!VALID_PLATFORMS.includes(platform)) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid platform: " + platform } });
-    }
-    if (!VALID_POST_TYPES.includes(postType)) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid postType: " + postType } });
-    }
+    const { transactionId, postType, platform, content, hashtags, mediaUrls, scheduledAt, metadata } = req.body;
+
     const initialStatus = scheduledAt ? "scheduled" : "draft";
     const [post] = await withTenantContext(tenantId, async (tx) => {
       return tx.insert(schema.socialPosts).values({
-        tenantId, agentId: userId, socialAccountId: socialAccountId || null,
+        tenantId, agentId: userId, socialAccountId: null,
         transactionId: transactionId || null, postType, platform, content,
-        hashtags: hashtags || [], mediaAssetIds: mediaAssetIds || [],
-        contentVariations: contentVariations || [], status: initialStatus,
+        hashtags: hashtags || [], mediaAssetIds: [],
+        contentVariations: [], status: initialStatus,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         complianceStatus: "pending",
+        metadata: metadata || {},
       }).returning();
     });
     logAudit({ tenantId, userId, action: "social_post.create", resourceType: "social_post",
@@ -165,13 +153,11 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // ---------- POST /generate --- AI-generate post content ---------- //
-router.post("/generate", async (req: Request, res: Response) => {
+router.post("/generate", validateBody(generatePostSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { transactionId, postType, platform, tone } = req.body;
-    if (!postType || !platform) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "postType and platform are required" } });
-    }
+
     // Simulate AI-generated content
     const toneLabel = tone || "professional";
     const typeLabels: Record<string, string> = {
@@ -280,24 +266,17 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // ---------- PATCH /:id --- Update post ---------- //
-router.patch("/:id", async (req: Request, res: Response) => {
+router.patch("/:id", validateBody(updatePostSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
-    const updates: Record<string, unknown> = {};
-    const allowedFields = ["content", "scheduledAt", "hashtags", "mediaAssetIds"];
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        if (field === "scheduledAt") {
-          updates[field] = req.body[field] ? new Date(req.body[field]) : null;
-        } else {
-          updates[field] = req.body[field];
-        }
-      }
+
+    // Zod already validated and enforced at-least-one-field via .refine()
+    const updates = { ...req.body };
+    if (updates.scheduledAt) {
+      updates.scheduledAt = new Date(updates.scheduledAt);
     }
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "No valid fields to update" } });
-    }
+
     const [post] = await withTenantContext(tenantId, async (tx) => {
       return tx.update(schema.socialPosts).set({ ...updates, updatedAt: new Date() })
         .where(and(eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)))

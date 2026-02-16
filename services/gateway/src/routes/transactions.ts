@@ -5,6 +5,8 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { validateBody, validateQuery } from '../middleware/validate';
+import { createTransactionSchema, updateTransactionSchema, listTransactionsQuery } from '../schemas/transactions';
 
 const router = Router();
 
@@ -12,7 +14,7 @@ const router = Router();
 router.use(requireAuth);
 
 // POST /api/v1/transactions — Create transaction
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validateBody(createTransactionSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const {
@@ -20,20 +22,11 @@ router.post('/', async (req: Request, res: Response) => {
       listPrice, purchasePrice, closingDate, transactionType,
     } = req.body;
 
-    if (!propertyAddress || !propertyState || !transactionType) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'propertyAddress, propertyState, and transactionType are required' } });
-    }
-
-    const validTypes = ['buy', 'sell', 'lease', 'investment'];
-    if (!validTypes.includes(transactionType)) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: `transactionType must be one of: ${validTypes.join(', ')}` } });
-    }
-
     const [txn] = await withTenantContext(tenantId, async (tx) => {
       return tx.insert(schema.transactions).values({
         tenantId,
         propertyAddress,
-        propertyState: propertyState.toUpperCase(),
+        propertyState,
         buyerName: buyerName || null,
         sellerName: sellerName || null,
         listPrice: listPrice?.toString() || null,
@@ -55,15 +48,11 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/v1/transactions — List transactions with pagination and search
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', validateQuery(listTransactionsQuery), async (req: Request, res: Response) => {
   try {
     const { tenantId } = req.user!;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+    const { page, limit, search, status, state } = req.query as any;
     const offset = (page - 1) * limit;
-    const search = req.query.search as string;
-    const status = req.query.status as string;
-    const state = req.query.state as string;
 
     const conditions = [
       eq(schema.transactions.tenantId, tenantId),
@@ -77,7 +66,7 @@ router.get('/', async (req: Request, res: Response) => {
       conditions.push(eq(schema.transactions.status, status));
     }
     if (state) {
-      conditions.push(eq(schema.transactions.propertyState, state.toUpperCase()));
+      conditions.push(eq(schema.transactions.propertyState, state));
     }
 
     const [transactions, [{ total }]] = await withTenantContext(tenantId, async (tx) => {
@@ -128,7 +117,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // PATCH /api/v1/transactions/:id — Update transaction
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', validateBody(updateTransactionSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
@@ -139,8 +128,6 @@ router.patch('/:id', async (req: Request, res: Response) => {
       if (req.body[field] !== undefined) {
         if (field === 'listPrice' || field === 'purchasePrice') {
           updates[field] = req.body[field]?.toString() || null;
-        } else if (field === 'propertyState') {
-          updates[field] = req.body[field].toUpperCase();
         } else {
           updates[field] = req.body[field];
         }

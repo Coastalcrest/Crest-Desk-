@@ -5,6 +5,14 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { validateBody, validateQuery } from '../middleware/validate';
+import {
+  createBillingSchema,
+  updateBillingSchema,
+  listBillingQuery,
+  markPaidSchema,
+  generateInvoicesSchema,
+} from '../schemas';
 
 const router = Router();
 
@@ -68,17 +76,11 @@ router.get('/outstanding', requireRole('managing_broker'), async (req: Request, 
   }
 });
 // ---------- GET /api/v1/billing ---------- //
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', validateQuery(listBillingQuery), async (req: Request, res: Response) => {
   try {
     const { tenantId } = req.user!;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+    const { page, limit, agentId, billingType, paidStatus, dateFrom, dateTo } = req.query as any;
     const offset = (page - 1) * limit;
-    const agentId = req.query.agentId as string;
-    const billingType = req.query.billingType as string;
-    const paidStatus = req.query.paidStatus as string;
-    const dateFrom = req.query.dateFrom as string;
-    const dateTo = req.query.dateTo as string;
 
     const conditions = [
       eq(schema.agentBilling.tenantId, tenantId),
@@ -145,27 +147,13 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 // ---------- POST /api/v1/billing ---------- //
-router.post('/', requireRole('managing_broker'), async (req: Request, res: Response) => {
+router.post('/', requireRole('managing_broker'), validateBody(createBillingSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const {
-      agentId, billingType, amount, billingPeriodStart,
-      billingPeriodEnd, invoiceDate, dueDate, notes,
+      agentId, billingType, description, amount,
+      invoiceDate, dueDate, transactionId, notes,
     } = req.body;
-
-    if (!agentId || !billingType || !amount || !billingPeriodStart || !billingPeriodEnd) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'agentId, billingType, amount, billingPeriodStart, and billingPeriodEnd are required' } });
-    }
-
-    const validTypes = ['desk_fee', 'eao_insurance', 'tech_fee', 'other'];
-    if (!validTypes.includes(billingType)) {
-      return res.status(400).json({
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: `billingType must be one of: ${validTypes.join(', ')}`,
-        },
-      });
-    }
 
     const [record] = await withTenantContext(tenantId, async (tx) => {
       // Verify agent exists
@@ -183,10 +171,10 @@ router.post('/', requireRole('managing_broker'), async (req: Request, res: Respo
         agentId,
         billingType,
         amount: amount.toString(),
-        billingPeriodStart,
-        billingPeriodEnd,
-        invoiceDate: invoiceDate || new Date().toISOString().slice(0, 10),
-        dueDate: dueDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+        billingPeriodStart: invoiceDate,
+        billingPeriodEnd: dueDate,
+        invoiceDate,
+        dueDate,
         paidStatus: 'unpaid',
         notes: notes || null,
       }).returning();
@@ -214,29 +202,15 @@ router.post('/', requireRole('managing_broker'), async (req: Request, res: Respo
   }
 });
 // ---------- PATCH /api/v1/billing/:id ---------- //
-router.patch('/:id', requireRole('managing_broker'), async (req: Request, res: Response) => {
+router.patch('/:id', requireRole('managing_broker'), validateBody(updateBillingSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
-    const updates: Record<string, unknown> = {};
 
-    const allowedFields = [
-      'billingType', 'amount', 'billingPeriodStart', 'billingPeriodEnd',
-      'invoiceDate', 'dueDate', 'paidStatus', 'paymentDate', 'notes',
-    ];
-
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        if (field === 'amount') {
-          updates[field] = req.body[field].toString();
-        } else {
-          updates[field] = req.body[field];
-        }
-      }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'No valid fields to update' } });
+    // Zod already validated and enforced at-least-one-field via .refine()
+    const updates = { ...req.body };
+    if (updates.amount !== undefined) {
+      updates.amount = updates.amount.toString();
     }
 
     const [record] = await withTenantContext(tenantId, async (tx) => {
@@ -273,17 +247,17 @@ router.patch('/:id', requireRole('managing_broker'), async (req: Request, res: R
 });
 
 // ---------- POST /api/v1/billing/:id/mark-paid ---------- //
-router.post('/:id/mark-paid', requireRole('managing_broker'), async (req: Request, res: Response) => {
+router.post('/:id/mark-paid', requireRole('managing_broker'), validateBody(markPaidSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
-    const today = new Date().toISOString().slice(0, 10);
+    const { paidDate, paidAmount, paymentMethod, paymentReference } = req.body;
 
     const [record] = await withTenantContext(tenantId, async (tx) => {
       return tx.update(schema.agentBilling)
         .set({
           paidStatus: 'paid',
-          paymentDate: today,
+          paymentDate: paidDate,
           updatedAt: new Date(),
         })
         .where(and(
@@ -304,7 +278,7 @@ router.post('/:id/mark-paid', requireRole('managing_broker'), async (req: Reques
       action: 'billing.mark_paid',
       resourceType: 'agent_billing',
       resourceId: id,
-      details: { paymentDate: today },
+      details: { paidDate, paidAmount, paymentMethod, paymentReference },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });
@@ -316,76 +290,55 @@ router.post('/:id/mark-paid', requireRole('managing_broker'), async (req: Reques
   }
 });
 // ---------- POST /api/v1/billing/generate-invoices ---------- //
-router.post('/generate-invoices', requireRole('managing_broker'), async (req: Request, res: Response) => {
+router.post('/generate-invoices', requireRole('managing_broker'), validateBody(generateInvoicesSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const { billingType, amount, periodStart, periodEnd, agentIds } = req.body;
-
-    if (!billingType || !amount || !periodStart || !periodEnd) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'billingType, amount, periodStart, and periodEnd are required' } });
-    }
-
-    const validTypes = ['desk_fee', 'eao_insurance', 'tech_fee', 'other'];
-    if (!validTypes.includes(billingType)) {
-      return res.status(400).json({
-        error: { code: 'VALIDATION_ERROR', message: `billingType must be one of: ${validTypes.join(', ')}` },
-      });
-    }
+    const { agentIds, invoiceDate, dueDate, billingTypes } = req.body;
 
     const result = await withTenantContext(tenantId, async (tx) => {
       // Get target agents
-      let targetAgents;
-      if (Array.isArray(agentIds) && agentIds.length > 0) {
-        targetAgents = await tx.select({ id: schema.users.id })
-          .from(schema.users)
-          .where(and(
-            eq(schema.users.tenantId, tenantId),
-            eq(schema.users.role, 'agent'),
-            isNull(schema.users.deletedAt),
-            sql`${schema.users.id} = ANY(${agentIds})`,
-          ));
-      } else {
-        targetAgents = await tx.select({ id: schema.users.id })
-          .from(schema.users)
-          .where(and(
-            eq(schema.users.tenantId, tenantId),
-            eq(schema.users.role, 'agent'),
-            isNull(schema.users.deletedAt),
-          ));
-      }
-
-      const invoiceDate = new Date().toISOString().slice(0, 10);
-      const dueDate = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+      const targetAgents = await tx.select({ id: schema.users.id })
+        .from(schema.users)
+        .where(and(
+          eq(schema.users.tenantId, tenantId),
+          eq(schema.users.role, 'agent'),
+          isNull(schema.users.deletedAt),
+          sql`${schema.users.id} = ANY(${agentIds})`,
+        ));
 
       const createdRecords = [];
+      const types = billingTypes || ['desk_fee'];
+
       for (const agent of targetAgents) {
-        // Check for duplicate (same agent, type, period)
-        const [existing] = await tx.select({ id: schema.agentBilling.id })
-          .from(schema.agentBilling)
-          .where(and(
-            eq(schema.agentBilling.tenantId, tenantId),
-            eq(schema.agentBilling.agentId, agent.id),
-            eq(schema.agentBilling.billingType, billingType),
-            eq(schema.agentBilling.billingPeriodStart, periodStart),
-            eq(schema.agentBilling.billingPeriodEnd, periodEnd),
-            isNull(schema.agentBilling.deletedAt),
-          ))
-          .limit(1);
+        for (const billingType of types) {
+          // Check for duplicate (same agent, type, period)
+          const [existing] = await tx.select({ id: schema.agentBilling.id })
+            .from(schema.agentBilling)
+            .where(and(
+              eq(schema.agentBilling.tenantId, tenantId),
+              eq(schema.agentBilling.agentId, agent.id),
+              eq(schema.agentBilling.billingType, billingType),
+              eq(schema.agentBilling.billingPeriodStart, invoiceDate),
+              eq(schema.agentBilling.billingPeriodEnd, dueDate),
+              isNull(schema.agentBilling.deletedAt),
+            ))
+            .limit(1);
 
-        if (existing) continue;
+          if (existing) continue;
 
-        const [record] = await tx.insert(schema.agentBilling).values({
-          tenantId,
-          agentId: agent.id,
-          billingType,
-          amount: amount.toString(),
-          billingPeriodStart: periodStart,
-          billingPeriodEnd: periodEnd,
-          invoiceDate,
-          dueDate,
-          paidStatus: 'unpaid',
-        }).returning();
-        createdRecords.push(record);
+          const [record] = await tx.insert(schema.agentBilling).values({
+            tenantId,
+            agentId: agent.id,
+            billingType,
+            amount: '0',
+            billingPeriodStart: invoiceDate,
+            billingPeriodEnd: dueDate,
+            invoiceDate,
+            dueDate,
+            paidStatus: 'unpaid',
+          }).returning();
+          createdRecords.push(record);
+        }
       }
 
       return { created: createdRecords.length, totalAgents: targetAgents.length, records: createdRecords };
@@ -396,7 +349,7 @@ router.post('/generate-invoices', requireRole('managing_broker'), async (req: Re
       userId,
       action: 'billing.generate_invoices',
       resourceType: 'agent_billing',
-      details: { billingType, amount, periodStart, periodEnd, created: result.created },
+      details: { agentIds, invoiceDate, dueDate, created: result.created },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });

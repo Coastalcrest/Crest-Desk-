@@ -4,26 +4,23 @@ import { db, withTenantContext } from '../lib/db';
 import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
+import { validateBody, validateQuery } from '../middleware/validate';
+import {
+  composeEmailSchema,
+  batchActionSchema,
+  aiReplySchema,
+  listEmailsQuery,
+} from '../schemas';
 
 const router = Router();
 router.use(requireAuth);
 
-const VALID_FOLDERS = ['inbox', 'sent', 'drafts', 'starred', 'trash', 'spam', 'archive'];
-
 // ---------- GET / --- List emails (unified inbox) ---------- //
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", validateQuery(listEmailsQuery), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+    const { page, limit, folder, accountId, search, isRead, isStarred, contactId, dealId } = req.query as any;
     const offset = (page - 1) * limit;
-    const folder = req.query.folder as string || 'inbox';
-    const accountId = req.query.accountId as string;
-    const search = req.query.search as string;
-    const isRead = req.query.isRead as string;
-    const isStarred = req.query.isStarred as string;
-    const contactId = req.query.contactId as string;
-    const dealId = req.query.dealId as string;
 
     const conditions = [
       eq(schema.emails.tenantId, tenantId),
@@ -31,7 +28,7 @@ router.get("/", async (req: Request, res: Response) => {
       isNull(schema.emails.deletedAt),
     ];
 
-    if (folder && VALID_FOLDERS.includes(folder)) {
+    if (folder) {
       if (folder === 'starred') {
         conditions.push(eq(schema.emails.isStarred, true));
       } else if (folder === 'drafts') {
@@ -41,9 +38,9 @@ router.get("/", async (req: Request, res: Response) => {
       }
     }
     if (accountId) conditions.push(eq(schema.emails.accountId, accountId));
-    if (isRead === 'true') conditions.push(eq(schema.emails.isRead, true));
-    if (isRead === 'false') conditions.push(eq(schema.emails.isRead, false));
-    if (isStarred === 'true') conditions.push(eq(schema.emails.isStarred, true));
+    if (isRead === true) conditions.push(eq(schema.emails.isRead, true));
+    if (isRead === false) conditions.push(eq(schema.emails.isRead, false));
+    if (isStarred === true) conditions.push(eq(schema.emails.isStarred, true));
     if (contactId) conditions.push(eq(schema.emails.contactId, contactId));
     if (dealId) conditions.push(eq(schema.emails.dealId, dealId));
     if (search) {
@@ -149,16 +146,11 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // ---------- POST / --- Compose / send email ---------- //
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", validateBody(composeEmailSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const { accountId, toAddresses, ccAddresses, bccAddresses, subject, bodyHtml, bodyText, isDraft, scheduledAt, contactId, dealId, transactionId, inReplyTo, threadId } = req.body;
-    if (!accountId) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "accountId is required" } });
-    }
-    if (!isDraft && (!toAddresses || !Array.isArray(toAddresses) || toAddresses.length === 0)) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "toAddresses is required for sending" } });
-    }
+    const { accountId, to, cc, bcc, subject, bodyHtml, bodyText, isDraft, scheduledAt, contactId, dealId, transactionId, replyToEmailId } = req.body;
+
     // Verify account belongs to user
     const account = await withTenantContext(tenantId, async (tx) => {
       const [row] = await tx.select().from(schema.emailAccounts).where(and(
@@ -181,12 +173,12 @@ router.post("/", async (req: Request, res: Response) => {
         tenantId, accountId, userId, direction,
         fromAddress: account.email,
         fromName: account.displayName || account.email,
-        toAddresses: toAddresses || [],
-        ccAddresses: ccAddresses || [],
-        bccAddresses: bccAddresses || [],
+        toAddresses: to || [],
+        ccAddresses: cc || [],
+        bccAddresses: bcc || [],
         subject, bodyHtml, bodyText, snippet,
-        messageId, inReplyTo: inReplyTo || null,
-        threadId: threadId || null,
+        messageId, inReplyTo: replyToEmailId || null,
+        threadId: null,
         isDraft: isDraft || false,
         folder: isDraft ? 'drafts' : 'sent',
         isRead: true,
@@ -200,7 +192,7 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
     logAudit({ tenantId, userId, action: isDraft ? "email.draft" : "email.send", resourceType: "email",
-      resourceId: email.id, details: { toAddresses, subject: subject?.substring(0, 100), isDraft },
+      resourceId: email.id, details: { to, subject: subject?.substring(0, 100), isDraft },
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
 
     return res.status(201).json({ data: email });
@@ -211,13 +203,11 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // ---------- POST /ai-reply --- AI-generated reply ---------- //
-router.post("/ai-reply", async (req: Request, res: Response) => {
+router.post("/ai-reply", validateBody(aiReplySchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { emailId, tone } = req.body;
-    if (!emailId) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "emailId is required" } });
-    }
+
     const original = await withTenantContext(tenantId, async (tx) => {
       const [row] = await tx.select().from(schema.emails).where(and(
         eq(schema.emails.id, emailId),
@@ -312,20 +302,15 @@ router.patch("/:id", async (req: Request, res: Response) => {
 });
 
 // ---------- POST /batch --- Batch operations ---------- //
-router.post("/batch", async (req: Request, res: Response) => {
+router.post("/batch", validateBody(batchActionSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { emailIds, action } = req.body;
-    if (!emailIds || !Array.isArray(emailIds) || emailIds.length === 0) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "emailIds array is required" } });
-    }
-    if (!['mark_read', 'mark_unread', 'archive', 'trash', 'star', 'unstar'].includes(action)) {
-      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid action" } });
-    }
+
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     switch (action) {
-      case 'mark_read': updateData.isRead = true; break;
-      case 'mark_unread': updateData.isRead = false; break;
+      case 'read': updateData.isRead = true; break;
+      case 'unread': updateData.isRead = false; break;
       case 'archive': updateData.folder = 'archive'; break;
       case 'trash': updateData.folder = 'trash'; break;
       case 'star': updateData.isStarred = true; break;

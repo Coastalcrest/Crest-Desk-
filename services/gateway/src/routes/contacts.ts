@@ -4,6 +4,16 @@ import { db, withTenantContext } from '../lib/db';
 import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
+import { validateBody, validateQuery } from '../middleware/validate';
+import {
+  createContactSchema,
+  updateContactSchema,
+  listContactsQuery,
+  addTagsSchema,
+  importContactsSchema,
+  logActivitySchema,
+  enrollContactSchema,
+} from '../schemas';
 
 const ROLE_LEVEL: Record<string, number> = { agent: 0, managing_broker: 1, principal_broker: 2, owner: 3 };
 function hasMinRole(userRole: string, minRole: string): boolean {
@@ -16,18 +26,11 @@ const router = Router();
 router.use(requireAuth);
 
 // ---------- GET /api/v1/contacts — List contacts ---------- //
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', validateQuery(listContactsQuery), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+    const { page, limit, search, contactType, source, tag, ownerId, sortBy } = req.query as any;
     const offset = (page - 1) * limit;
-    const search = req.query.search as string;
-    const contactType = req.query.contactType as string;
-    const source = req.query.source as string;
-    const tag = req.query.tag as string;
-    const ownerId = req.query.ownerId as string;
-    const sortBy = req.query.sortBy as string;
 
     const conditions = [
       eq(schema.contacts.tenantId, tenantId),
@@ -155,7 +158,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 });
 
 // ---------- POST /api/v1/contacts — Create contact ---------- //
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', validateBody(createContactSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const {
@@ -171,10 +174,6 @@ router.post('/', async (req: Request, res: Response) => {
       doNotContact, smsConsent, smsConsentDate,
       ownerUserId,
     } = req.body;
-
-    if (!firstName || !lastName) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'firstName and lastName are required' } });
-    }
 
     const [contact] = await withTenantContext(tenantId, async (tx) => {
       return tx.insert(schema.contacts).values({
@@ -289,35 +288,13 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // ---------- PATCH /api/v1/contacts/:id — Update contact ---------- //
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', validateBody(updateContactSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
-    const updates: Record<string, unknown> = {};
 
-    const allowedFields = [
-      'firstName', 'lastName', 'email', 'emailSecondary',
-      'phone', 'phoneSecondary', 'phoneType', 'preferredChannel',
-      'company', 'jobTitle',
-      'mailingAddress', 'mailingCity', 'mailingState', 'mailingZip',
-      'birthday', 'anniversary',
-      'source', 'sourceDetail', 'contactType',
-      'relationshipScore', 'leadScore',
-      'tags', 'customFields', 'socialProfiles', 'familyMembers',
-      'notes', 'nextFollowUpAt',
-      'doNotContact', 'smsConsent', 'smsConsentDate',
-      'ownerUserId',
-    ];
-
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
-      }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'No valid fields to update' } });
-    }
+    // Zod already validated and stripped unknown fields via .partial()
+    const updates = req.body;
 
     const [contact] = await withTenantContext(tenantId, async (tx) => {
       return tx.update(schema.contacts)
@@ -406,7 +383,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // ---------- POST /api/v1/contacts/:id/activities — Log an activity ---------- //
-router.post('/:id/activities', async (req: Request, res: Response) => {
+router.post('/:id/activities', validateBody(logActivitySchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
@@ -415,10 +392,6 @@ router.post('/:id/activities', async (req: Request, res: Response) => {
       channel, direction, metadata,
       relatedTransactionId, relatedDocumentId,
     } = req.body;
-
-    if (!activityType) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'activityType is required' } });
-    }
 
     const result = await withTenantContext(tenantId, async (tx) => {
       // Verify contact exists
@@ -510,15 +483,11 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
 });
 
 // ---------- POST /api/v1/contacts/:id/tags — Add tags ---------- //
-router.post('/:id/tags', async (req: Request, res: Response) => {
+router.post('/:id/tags', validateBody(addTagsSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const { tags } = req.body;
-
-    if (!Array.isArray(tags) || tags.length === 0) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'tags must be a non-empty array of strings' } });
-    }
 
     const [contact] = await withTenantContext(tenantId, async (tx) => {
       // Fetch current tags
@@ -591,14 +560,10 @@ router.delete('/:id/tags/:tag', async (req: Request, res: Response) => {
 });
 
 // ---------- POST /api/v1/contacts/import — Bulk import contacts ---------- //
-router.post('/import', async (req: Request, res: Response) => {
+router.post('/import', validateBody(importContactsSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { contacts: contactsData } = req.body;
-
-    if (!Array.isArray(contactsData) || contactsData.length === 0) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'contacts must be a non-empty array' } });
-    }
 
     const result = await withTenantContext(tenantId, async (tx) => {
       let imported = 0;
@@ -607,11 +572,6 @@ router.post('/import', async (req: Request, res: Response) => {
 
       for (let i = 0; i < contactsData.length; i++) {
         const c = contactsData[i];
-
-        if (!c.firstName || !c.lastName) {
-          errors.push(`Row ${i + 1}: firstName and lastName are required`);
-          continue;
-        }
 
         // Skip duplicates based on email match
         if (c.email) {
@@ -691,15 +651,11 @@ router.post('/import', async (req: Request, res: Response) => {
 });
 
 // ---------- POST /api/v1/contacts/:id/enroll — Enroll in follow-up sequence ---------- //
-router.post('/:id/enroll', async (req: Request, res: Response) => {
+router.post('/:id/enroll', validateBody(enrollContactSchema), async (req: Request, res: Response) => {
   try {
     const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const { sequenceId } = req.body;
-
-    if (!sequenceId) {
-      return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'sequenceId is required' } });
-    }
 
     const result = await withTenantContext(tenantId, async (tx) => {
       // Verify contact exists
