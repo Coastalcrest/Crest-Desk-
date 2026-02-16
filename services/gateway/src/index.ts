@@ -26,6 +26,10 @@ import signPublicRoutes from './routes/sign-public';
 import closingPackagesRoutes from './routes/closing-packages';
 import reviewQueueRoutes from './routes/review-queue';
 import aiReviewRoutes from './routes/ai-review';
+import contactsRoutes from './routes/contacts';
+import dealsRoutes from './routes/deals';
+import followUpRoutes from './routes/follow-up';
+import leadSourcesRoutes from './routes/lead-sources';
 
 const app = express();
 
@@ -76,6 +80,10 @@ app.use('/api/v1/sign', signPublicRoutes);
 app.use('/api/v1/closing-packages', closingPackagesRoutes);
 app.use('/api/v1/review-queue', reviewQueueRoutes);
 app.use('/api/v1/ai-review', aiReviewRoutes);
+app.use('/api/v1/contacts', contactsRoutes);
+app.use('/api/v1/deals', dealsRoutes);
+app.use('/api/v1/follow-up', followUpRoutes);
+app.use('/api/v1/lead-sources', leadSourcesRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

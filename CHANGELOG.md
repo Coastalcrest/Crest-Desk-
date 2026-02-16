@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-02-15
+
+### Added — Phase 5: CRM & Follow-Up
+
+#### Database Schema (8 New Tables)
+- Contacts table with multi-channel communication (email, phone, SMS), social profiles, family info, contact scoring, tagging, and lifecycle tracking
+- Contact activities table for full timeline (email, call, SMS, meeting, note, showing, offer, closing, task, referral)
+- Pipeline stages table for customizable Kanban deal board with sort ordering and color coding
+- Deals table with stage progression, value tracking, probability, expected close date, and contact/transaction linking
+- Follow-up sequences table for multi-step automated drip campaigns (lead_nurture, active_transaction, post_close, re_engagement, custom)
+- Follow-up enrollments table for contact-to-sequence assignments with pause/resume/cancel lifecycle
+- Follow-up messages table for individual message tracking with delivery status, channel support, and scheduling
+- Lead sources table for attribution tracking with auto-assign rules and round-robin distribution
+- Row-Level Security policies for all Phase 5 tables
+- Updated_at triggers for automatic timestamp management
+
+#### Contacts Management (Gateway API)
+- Paginated contact list with search, filter by type/source/tag/owner, and sort by name/score/created/updated
+- Contact stats: total, new this month, active deals, upcoming follow-ups
+- Full CRUD: create, read, update, soft-delete contacts
+- Activity timeline: log activities (email, call, SMS, meeting, note, showing, offer, closing) with attachments
+- Activity history with pagination per contact
+- Tag management: add/remove tags per contact
+- Bulk CSV import with upsert logic (match by email)
+- Enroll contact in follow-up sequence directly from contact detail
+
+#### Pipeline & Deals (Gateway API)
+- Pipeline stage management: list stages, create custom stages (Managing Broker+)
+- Deal list with filters by stage, owner, contact, deal type, and sort by value/probability/close date
+- Deal stats: total active deals, total pipeline value, average deal value, won/lost counts
+- Full CRUD: create, read, update, soft-delete deals
+- Drag-and-drop stage movement endpoint for Kanban board
+
+#### Follow-Up Engine (Gateway API)
+- Sequence CRUD: create multi-step automated sequences with step definitions (channel, delay, template, subject)
+- Enrollment management: enroll contacts, pause, resume, cancel enrollments
+- Process due messages: batch processor identifies and sends due messages based on enrollment start + step delays
+- Message status tracking: pending → sent → delivered → opened → clicked → replied (or failed/bounced)
+- Follow-up analytics: messages by status, delivery rate, open rate, click rate, reply rate
+- Per-enrollment progress tracking with current step and next send time
+
+#### Lead Sources (Gateway API)
+- Lead source list and CRUD (Managing Broker+ for create/update)
+- Source types: website, zillow, realtor_com, redfin, referral, open_house, social_media, paid_ads, cold_call, walk_in, other
+- Lead ingestion endpoint: accept inbound leads with auto-assignment via round-robin distribution
+- Auto-create contacts from ingested leads with source attribution
+- Per-source performance analytics: total leads, converted count, conversion rate, average response time
+
+#### Frontend — Contacts Dashboard
+- Contacts list with search bar, type/source filter dropdowns, and grid/list toggle
+- Stat cards: Total Contacts, New This Month, Active Deals, Upcoming Follow-Ups
+- Contact cards with avatar, name, type badge, contact score indicator, tags, and quick actions
+- Pagination controls with page size selector
+- Add Contact modal with full form fields
+
+#### Frontend — Contact Detail
+- Contact profile header with avatar, name, type, score, and lifecycle stage
+- Multi-tab layout: Overview, Activities, Deals, Sequences, Documents
+- Activity timeline with type-specific icons and chronological ordering
+- Log Activity form with type selector and notes field
+- Tag management inline editing
+- Quick actions: Edit, Delete, Enroll in Sequence
+
+#### Frontend — Pipeline Board
+- Kanban-style pipeline view with draggable deal cards across stages
+- Deal cards showing contact name, value, probability, expected close date
+- Stage columns with deal count and total value summaries
+- Add Deal modal with contact selector, stage, value, and probability fields
+- Filter bar: deal type, owner, date range
+- Stats row: Total Deals, Pipeline Value, Average Deal, Won/Lost ratio
+
+#### Frontend — Follow-Up Sequences
+- Sequence list with type badges (lead_nurture, post_close, etc.)
+- Sequence detail with step visualization (channel icon, delay, subject preview)
+- Enrollment list per sequence with status indicators
+- Create/edit sequence form with multi-step builder
+- Active enrollment count and completion rate per sequence
+
+#### Frontend — Lead Sources
+- Lead source list with source type icons and performance metrics
+- Source performance cards: total leads, conversion rate, avg response time
+- Create/edit source form with auto-assign and distribution rule configuration
+- Lead ingestion activity feed
+
+#### Frontend — Navigation
+- Added "Pipeline" nav item with Kanban icon (visible to all roles)
+
+#### Infrastructure Updates
+- Gateway schema.ts updated with 8 new Phase 5 table exports (35 total)
+- Gateway index.ts updated with 4 new route groups (contacts, deals, follow-up, lead-sources)
+- 10 new SQL migrations (0038-0047) with RLS policies and triggers
+
 ## [v0.4.0] - 2026-02-15
 
 ### Added — Phase 4: Broker Review & AI Audit

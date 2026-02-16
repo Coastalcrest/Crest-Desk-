@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Kanban,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +54,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Transactions', href: '/dashboard/transactions', icon: FileText },
   { label: 'Contacts', href: '/dashboard/contacts', icon: Users },
+  { label: 'Pipeline', href: '/dashboard/pipeline', icon: Kanban },
   { label: 'Documents', href: '/dashboard/documents', icon: FolderOpen },
   { label: 'Forms', href: '/dashboard/forms', icon: ClipboardList },
   { label: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
