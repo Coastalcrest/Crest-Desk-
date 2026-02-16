@@ -37,6 +37,8 @@ import billingRoutes from './routes/billing';
 import reportsRoutes from './routes/reports';
 import mediaRoutes from './routes/media';
 import assetLibraryRoutes from './routes/asset-library';
+import socialPostsRoutes from './routes/social-posts';
+import socialAnalyticsRoutes from './routes/social-analytics';
 
 const app = express();
 
@@ -98,6 +100,8 @@ app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/media', mediaRoutes);
 app.use('/api/v1/asset-library', assetLibraryRoutes);
+app.use('/api/v1/social-posts', socialPostsRoutes);
+app.use('/api/v1/social-analytics', socialAnalyticsRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

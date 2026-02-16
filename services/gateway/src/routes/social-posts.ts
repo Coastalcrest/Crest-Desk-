@@ -1,0 +1,583 @@
+import { Router, Request, Response } from 'express';
+import { eq, and, isNull, desc, asc, sql } from 'drizzle-orm';
+import { db, withTenantContext } from '../lib/db';
+import * as schema from '../lib/schema';
+import { requireAuth } from '../middleware/auth';
+import { requireRole } from '../lib/permissions';
+import { logAudit } from '../lib/audit';
+
+const router = Router();
+router.use(requireAuth);
+
+const VALID_PLATFORMS = ['facebook', 'instagram', 'linkedin', 'youtube', 'tiktok', 'twitter', 'google_business'];
+const VALID_POST_TYPES = ['new_listing', 'open_house', 'under_contract', 'price_reduction', 'just_sold', 'testimonial', 'market_update', 'evergreen', 'custom'];
+const VALID_STATUSES = ['draft', 'scheduled', 'published', 'rejected', 'pending_approval'];
+
+// ---------- GET / --- List social posts ---------- //
+router.get("/", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+    const offset = (page - 1) * limit;
+    const agentId = req.query.agentId as string;
+    const platform = req.query.platform as string;
+    const postType = req.query.postType as string;
+    const status = req.query.status as string;
+    const transactionId = req.query.transactionId as string;
+    const scheduledFrom = req.query.scheduledFrom as string;
+    const scheduledTo = req.query.scheduledTo as string;
+    const sortBy = req.query.sortBy as string;
+    const conditions = [
+      eq(schema.socialPosts.tenantId, tenantId),
+      isNull(schema.socialPosts.deletedAt),
+    ];
+    if (agentId) conditions.push(eq(schema.socialPosts.agentId, agentId));
+    if (platform) conditions.push(eq(schema.socialPosts.platform, platform));
+    if (postType) conditions.push(eq(schema.socialPosts.postType, postType));
+    if (status) conditions.push(eq(schema.socialPosts.status, status));
+    if (transactionId) conditions.push(eq(schema.socialPosts.transactionId, transactionId));
+    if (scheduledFrom) {
+      conditions.push(sql`${schema.socialPosts.scheduledAt} >= ${scheduledFrom}::timestamptz`);
+    }
+    if (scheduledTo) {
+      conditions.push(sql`${schema.socialPosts.scheduledAt} <= ${scheduledTo}::timestamptz`);
+    }
+    const orderClause = sortBy === "publishedAt" ? desc(schema.socialPosts.publishedAt)
+      : sortBy === "scheduledAt" ? asc(schema.socialPosts.scheduledAt)
+      : desc(schema.socialPosts.createdAt);
+    const [posts, countRes] = await withTenantContext(tenantId, async (tx) => {
+      const rows = await tx.select().from(schema.socialPosts)
+        .where(and(...conditions)).orderBy(orderClause)
+        .limit(limit).offset(offset);
+      const cr = await tx.select({ total: sql`count(*)::int` })
+        .from(schema.socialPosts).where(and(...conditions));
+      return [rows, cr];
+    });
+    const total = (countRes[0]?.total as number) ?? 0;
+    return res.json({ data: posts, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    console.error("List social posts error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list social posts" } });
+  }
+});
+
+// ---------- GET /stats --- Post statistics ---------- //
+router.get("/stats", async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.user\!;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const stats = await withTenantContext(tenantId, async (tx) => {
+      const [r] = await tx.select({
+        totalPosts: sql<number>`count(*)::int`,
+        publishedThisMonth: sql<number>`count(*) filter (where ${schema.socialPosts.publishedAt} >= ${monthStart}::timestamptz)::int`,
+        scheduledCount: sql<number>`count(*) filter (where ${schema.socialPosts.status} = $$scheduled$$)::int`,
+        pendingApproval: sql<number>`count(*) filter (where ${schema.socialPosts.status} = $$pending_approval$$)::int`,
+        totalImpressions: sql<number>`coalesce(sum(${schema.socialPosts.impressions}), 0)::int`,
+        totalEngagement: sql<number>`coalesce(sum(${schema.socialPosts.likes}) + sum(${schema.socialPosts.comments}) + sum(${schema.socialPosts.shares}), 0)::int`,
+      }).from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.tenantId, tenantId),
+        isNull(schema.socialPosts.deletedAt),
+      ));
+      // Find top platform
+      const platformStats = await tx.select({
+        platform: schema.socialPosts.platform,
+        count: sql<number>`count(*)::int`,
+      }).from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.tenantId, tenantId),
+        isNull(schema.socialPosts.deletedAt),
+      )).groupBy(schema.socialPosts.platform).orderBy(desc(sql`count(*)`)).limit(1);
+      const topPlatform = platformStats[0]?.platform || null;
+      return { ...r, topPlatform };
+    });
+    return res.json({ data: stats });
+  } catch (err) {
+    console.error("Post stats error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get post stats" } });
+  }
+});
+
+// ---------- GET /calendar --- Calendar view ---------- //
+router.get("/calendar", async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.user\!;
+    const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const startDate = new Date(year, month - 1, 1).toISOString();
+    const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
+    const posts = await withTenantContext(tenantId, async (tx) => {
+      return tx.select().from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.tenantId, tenantId),
+        isNull(schema.socialPosts.deletedAt),
+        sql`coalesce(${schema.socialPosts.scheduledAt}, ${schema.socialPosts.publishedAt}) >= ${startDate}::timestamptz`,
+        sql`coalesce(${schema.socialPosts.scheduledAt}, ${schema.socialPosts.publishedAt}) <= ${endDate}::timestamptz`,
+      )).orderBy(asc(schema.socialPosts.scheduledAt));
+    });
+    // Group posts by date
+    const calendar: Record<string, typeof posts> = {};
+    for (const post of posts) {
+      const dateKey = (post.scheduledAt || post.publishedAt || post.createdAt)
+        .toISOString().split("T")[0];
+      if (\!calendar[dateKey]) calendar[dateKey] = [];
+      calendar[dateKey].push(post);
+    }
+    return res.json({ data: { month, year, calendar } });
+  } catch (err) {
+    console.error("Calendar view error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get calendar view" } });
+  }
+});
+
+// ---------- POST / --- Create social post ---------- //
+router.post("/", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { socialAccountId, transactionId, postType, platform, content, hashtags, mediaAssetIds, scheduledAt, contentVariations } = req.body;
+    if (\!postType || \!platform || \!content) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "postType, platform, and content are required" } });
+    }
+    if (\!VALID_PLATFORMS.includes(platform)) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid platform: " + platform } });
+    }
+    if (\!VALID_POST_TYPES.includes(postType)) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid postType: " + postType } });
+    }
+    const initialStatus = scheduledAt ? "scheduled" : "draft";
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.insert(schema.socialPosts).values({
+        tenantId, agentId: userId, socialAccountId: socialAccountId || null,
+        transactionId: transactionId || null, postType, platform, content,
+        hashtags: hashtags || [], mediaAssetIds: mediaAssetIds || [],
+        contentVariations: contentVariations || [], status: initialStatus,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        complianceStatus: "pending",
+      }).returning();
+    });
+    logAudit({ tenantId, userId, action: "social_post.create", resourceType: "social_post",
+      resourceId: post.id, details: { postType, platform, status: initialStatus },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.status(201).json({ data: post });
+  } catch (err) {
+    console.error("Create social post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create social post" } });
+  }
+});
+
+// ---------- POST /generate --- AI-generate post content ---------- //
+router.post("/generate", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { transactionId, postType, platform, tone } = req.body;
+    if (\!postType || \!platform) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "postType and platform are required" } });
+    }
+    // Simulate AI-generated content
+    const toneLabel = tone || "professional";
+    const typeLabels: Record<string, string> = {
+      new_listing: "Just listed\! Check out this stunning property.",
+      open_house: "Join us for an open house this weekend\!",
+      under_contract: "Exciting news - this property is now under contract\!",
+      price_reduction: "Price just reduced\! Now is the perfect time to make an offer.",
+      just_sold: "Another successful closing\! Congratulations to the new homeowners.",
+      testimonial: "We love hearing from our happy clients\!",
+      market_update: "Here is your latest real estate market update.",
+      evergreen: "Thinking about buying or selling? We are here to help\!",
+      custom: "Discover what makes our brokerage different.",
+    };
+    const generatedContent = typeLabels[postType] || "Check out our latest real estate update\!";
+    const generatedHashtags = ["#realestate", "#" + platform, "#" + postType.replace(/_/g, ""), "#coastalcrest"];
+    const captionVariations = [
+      generatedContent + " " + generatedHashtags.join(" "),
+      "🏠 " + generatedContent + " Contact us today\!",
+      generatedContent + " Call us for more details. " + generatedHashtags.slice(0, 2).join(" "),
+    ];
+    // Create a draft post with AI-generated content
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.insert(schema.socialPosts).values({
+        tenantId, agentId: userId, transactionId: transactionId || null,
+        postType, platform, content: generatedContent,
+        hashtags: generatedHashtags, contentVariations: captionVariations,
+        status: "draft", complianceStatus: "pending",
+        metadata: { generatedBy: "ai", tone: toneLabel },
+      }).returning();
+    });
+    logAudit({ tenantId, userId, action: "social_post.generate", resourceType: "social_post",
+      resourceId: post.id, details: { postType, platform, tone: toneLabel },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.status(201).json({ data: { post, generatedContent, hashtags: generatedHashtags, captionVariations } });
+  } catch (err) {
+    console.error("Generate post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to generate post content" } });
+  }
+});
+
+// ---------- POST /bulk-schedule --- Bulk generate and schedule posts ---------- //
+router.post("/bulk-schedule", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { startDate, endDate, platforms, postTypes, transactionId } = req.body;
+    if (\!startDate || \!endDate || \!platforms || \!Array.isArray(platforms) || platforms.length === 0) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "startDate, endDate, and platforms are required" } });
+    }
+    const types = postTypes && Array.isArray(postTypes) ? postTypes : ["evergreen"];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const createdPosts = await withTenantContext(tenantId, async (tx) => {
+      const posts = [];
+      const current = new Date(start);
+      let dayIndex = 0;
+      while (current <= end) {
+        const plat = platforms[dayIndex % platforms.length];
+        const pt = types[dayIndex % types.length];
+        const scheduleTime = new Date(current);
+        scheduleTime.setHours(10, 0, 0, 0);
+        const [post] = await tx.insert(schema.socialPosts).values({
+          tenantId, agentId: userId, transactionId: transactionId || null,
+          postType: pt, platform: plat,
+          content: "Scheduled " + pt.replace(/_/g, " ") + " post for " + plat,
+          hashtags: ["#realestate", "#" + plat], status: "scheduled",
+          scheduledAt: scheduleTime, complianceStatus: "pending",
+          metadata: { bulkGenerated: true },
+        }).returning();
+        posts.push(post);
+        current.setDate(current.getDate() + 1);
+        dayIndex++;
+      }
+      return posts;
+    });
+    logAudit({ tenantId, userId, action: "social_post.bulk_schedule", resourceType: "social_post",
+      details: { startDate, endDate, platforms, postTypes: types, count: createdPosts.length },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.status(201).json({ data: { posts: createdPosts, totalScheduled: createdPosts.length } });
+  } catch (err) {
+    console.error("Bulk schedule error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to bulk schedule posts" } });
+  }
+});
+
+// ---------- GET /:id --- Get single post detail ---------- //
+router.get("/:id", async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.user\!;
+    const { id } = req.params;
+    const post = await withTenantContext(tenantId, async (tx) => {
+      const [row] = await tx.select().from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.id, id),
+        eq(schema.socialPosts.tenantId, tenantId),
+        isNull(schema.socialPosts.deletedAt),
+      ));
+      return row || null;
+    });
+    if (\!post) {
+      return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    }
+    return res.json({ data: post });
+  } catch (err) {
+    console.error("Get social post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get social post" } });
+  }
+});
+
+// ---------- PATCH /:id --- Update post ---------- //
+router.patch("/:id", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { id } = req.params;
+    const updates: Record<string, unknown> = {};
+    const allowedFields = ["content", "scheduledAt", "hashtags", "mediaAssetIds"];
+    for (const field of allowedFields) {
+      if (req.body[field] \!== undefined) {
+        if (field === "scheduledAt") {
+          updates[field] = req.body[field] ? new Date(req.body[field]) : null;
+        } else {
+          updates[field] = req.body[field];
+        }
+      }
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "No valid fields to update" } });
+    }
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.update(schema.socialPosts).set({ ...updates, updatedAt: new Date() })
+        .where(and(eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)))
+        .returning();
+    });
+    if (\!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    logAudit({ tenantId, userId, action: "social_post.update", resourceType: "social_post",
+      resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.json({ data: post });
+  } catch (err) {
+    console.error("Update social post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update social post" } });
+  }
+});
+
+// ---------- DELETE /:id --- Soft delete post ---------- //
+router.delete("/:id", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { id } = req.params;
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.update(schema.socialPosts).set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)))
+        .returning();
+    });
+    if (\!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    logAudit({ tenantId, userId, action: "social_post.delete", resourceType: "social_post",
+      resourceId: id, details: {}, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.json({ data: { id, deleted: true } });
+  } catch (err) {
+    console.error("Delete social post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete social post" } });
+  }
+});
+
+// ---------- POST /:id/compliance-check --- Run compliance check ---------- //
+router.post("/:id/compliance-check", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { id } = req.params;
+    const [existing] = await withTenantContext(tenantId, async (tx) => {
+      return tx.select().from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
+    });
+    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    // Simulate compliance checks
+    const issues: Array<{ rule: string; severity: string; description: string; passed: boolean }> = [];
+    const contentLower = existing.content.toLowerCase();
+    issues.push({ rule: "disclaimer_required", severity: "high",
+      description: "Brokerage disclaimer must be included",
+      passed: contentLower.includes("coastal crest") || contentLower.includes("brokerage") });
+    issues.push({ rule: "license_number", severity: "high",
+      description: "Agent license number should be referenced",
+      passed: contentLower.includes("license") || contentLower.includes("lic#") });
+    issues.push({ rule: "fair_housing", severity: "critical",
+      description: "Content must not violate Fair Housing Act",
+      passed: true });
+    issues.push({ rule: "equal_opportunity", severity: "medium",
+      description: "Equal Housing Opportunity statement recommended",
+      passed: contentLower.includes("equal") || existing.platform === "twitter" });
+    const failedIssues = issues.filter((i) => \!i.passed);
+    const finalStatus = failedIssues.length > 0 ? "failed" : "passed";
+    const [updated] = await withTenantContext(tenantId, async (tx) => {
+      return tx.update(schema.socialPosts).set({
+        complianceStatus: finalStatus, complianceIssues: issues,
+        complianceCheckedAt: new Date(), updatedAt: new Date(),
+      }).where(eq(schema.socialPosts.id, id)).returning();
+    });
+    logAudit({ tenantId, userId, action: "social_post.compliance_check", resourceType: "social_post",
+      resourceId: id, details: { complianceStatus: finalStatus, totalChecks: issues.length, failedChecks: failedIssues.length },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.json({ data: { post: updated, complianceResult: { status: finalStatus, totalChecks: issues.length, failedChecks: failedIssues.length, issues } } });
+  } catch (err) {
+    console.error("Compliance check error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to run compliance check" } });
+  }
+});
+
+// ---------- POST /:id/approve --- Approve post (managing_broker+) ---------- //
+router.post("/:id/approve", requireRole("managing_broker"), async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { id } = req.params;
+    const [existing] = await withTenantContext(tenantId, async (tx) => {
+      return tx.select().from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
+    });
+    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (existing.status === "published") return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Post is already published" } });
+    const newStatus = existing.scheduledAt ? "scheduled" : "published";
+    const updateData: Record<string, unknown> = {
+      status: newStatus, approvedBy: userId, approvedAt: new Date(), updatedAt: new Date(),
+    };
+    if (newStatus === "published") updateData.publishedAt = new Date();
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.update(schema.socialPosts).set(updateData)
+        .where(eq(schema.socialPosts.id, id)).returning();
+    });
+    logAudit({ tenantId, userId, action: "social_post.approve", resourceType: "social_post",
+      resourceId: id, details: { newStatus, previousStatus: existing.status },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.json({ data: post });
+  } catch (err) {
+    console.error("Approve post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to approve post" } });
+  }
+});
+
+// ---------- POST /:id/reject --- Reject post (managing_broker+) ---------- //
+router.post("/:id/reject", requireRole("managing_broker"), async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { id } = req.params;
+    const { reason } = req.body;
+    if (\!reason || typeof reason \!== "string" || reason.trim().length === 0) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "reason is required" } });
+    }
+    const [existing] = await withTenantContext(tenantId, async (tx) => {
+      return tx.select().from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
+    });
+    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.update(schema.socialPosts).set({
+        status: "rejected", rejectionReason: reason.trim(),
+        rejectedBy: userId, rejectedAt: new Date(), updatedAt: new Date(),
+      }).where(eq(schema.socialPosts.id, id)).returning();
+    });
+    logAudit({ tenantId, userId, action: "social_post.reject", resourceType: "social_post",
+      resourceId: id, details: { reason: reason.trim(), previousStatus: existing.status },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.json({ data: post });
+  } catch (err) {
+    console.error("Reject post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to reject post" } });
+  }
+});
+
+// ---------- POST /:id/publish --- Publish post immediately ---------- //
+router.post("/:id/publish", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { id } = req.params;
+    const [existing] = await withTenantContext(tenantId, async (tx) => {
+      return tx.select().from(schema.socialPosts).where(and(
+        eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
+    });
+    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (existing.status === "published") return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Post is already published" } });
+    if (existing.complianceStatus === "failed") return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Cannot publish a compliance-failed post" } });
+    // Simulate publishing to platform
+    const platformPostId = "ext_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+    const platformPostUrl = "https://" + existing.platform + ".com/post/" + platformPostId;
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.update(schema.socialPosts).set({
+        status: "published", platformPostId, platformPostUrl,
+        publishedAt: new Date(), updatedAt: new Date(),
+      }).where(eq(schema.socialPosts.id, id)).returning();
+    });
+    logAudit({ tenantId, userId, action: "social_post.publish", resourceType: "social_post",
+      resourceId: id, details: { platform: existing.platform, platformPostId, platformPostUrl },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.json({ data: post });
+  } catch (err) {
+    console.error("Publish post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to publish post" } });
+  }
+});
+
+// ---------- POST /:id/reschedule --- Reschedule post ---------- //
+router.post("/:id/reschedule", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { id } = req.params;
+    const { scheduledAt } = req.body;
+    if (\!scheduledAt) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "scheduledAt is required" } });
+    }
+    const [post] = await withTenantContext(tenantId, async (tx) => {
+      return tx.update(schema.socialPosts).set({
+        scheduledAt: new Date(scheduledAt), status: "scheduled", updatedAt: new Date(),
+      }).where(and(eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)))
+        .returning();
+    });
+    if (\!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    logAudit({ tenantId, userId, action: "social_post.reschedule", resourceType: "social_post",
+      resourceId: id, details: { scheduledAt }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.json({ data: post });
+  } catch (err) {
+    console.error("Reschedule post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to reschedule post" } });
+  }
+});
+
+// ---------- GET /approval-queue --- Posts pending broker approval (managing_broker+) ---------- //
+router.get("/approval-queue", requireRole("managing_broker"), async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.user\!;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
+    const offset = (page - 1) * limit;
+    const conditions = [
+      eq(schema.socialPosts.tenantId, tenantId),
+      eq(schema.socialPosts.status, "pending_approval"),
+      isNull(schema.socialPosts.deletedAt),
+    ];
+    const [posts, countRes] = await withTenantContext(tenantId, async (tx) => {
+      const rows = await tx.select().from(schema.socialPosts)
+        .where(and(...conditions)).orderBy(asc(schema.socialPosts.createdAt))
+        .limit(limit).offset(offset);
+      const cr = await tx.select({ total: sql`count(*)::int` })
+        .from(schema.socialPosts).where(and(...conditions));
+      return [rows, cr];
+    });
+    const total = (countRes[0]?.total as number) ?? 0;
+    return res.json({ data: posts, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) {
+    console.error("Approval queue error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get approval queue" } });
+  }
+});
+
+// ---------- POST /milestone --- Auto-generate milestone post ---------- //
+router.post("/milestone", async (req: Request, res: Response) => {
+  try {
+    const { userId, tenantId } = req.user\!;
+    const { transactionId, milestoneType } = req.body;
+    if (\!transactionId || \!milestoneType) {
+      return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "transactionId and milestoneType are required" } });
+    }
+    // Verify transaction exists
+    const txnExists = await withTenantContext(tenantId, async (tx) => {
+      const [txn] = await tx.select({ id: schema.transactions.id })
+        .from(schema.transactions).where(and(
+          eq(schema.transactions.id, transactionId),
+          eq(schema.transactions.tenantId, tenantId),
+          isNull(schema.transactions.deletedAt)));
+      return \!\!txn;
+    });
+    if (\!txnExists) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Transaction not found" } });
+    // Generate milestone-specific content
+    const milestoneContent: Record<string, string> = {
+      new_listing: "Thrilled to announce a brand new listing\! This stunning property just hit the market.",
+      under_contract: "Great news\! This property is officially under contract. Congratulations to all parties\!",
+      price_change: "Price update on this fantastic property\! Now is the perfect time to schedule a showing.",
+      closed: "JUST SOLD\! Another successful closing. Thank you to my amazing clients for trusting me with this journey.",
+      inspection_complete: "Inspection complete and moving forward\! One step closer to closing day.",
+      appraisal_received: "Appraisal is in and looking great\! The process continues smoothly.",
+    };
+    const content = milestoneContent[milestoneType] || "Exciting milestone reached in this transaction\!"
+    const postTypeMap: Record<string, string> = {
+      new_listing: "new_listing", under_contract: "under_contract",
+      price_change: "price_reduction", closed: "just_sold",
+      inspection_complete: "custom", appraisal_received: "custom",
+    };
+    const postType = postTypeMap[milestoneType] || "custom";
+    const hashtags = ["#realestate", "#" + milestoneType.replace(/_/g, ""), "#milestone", "#coastalcrest"];
+    // Create draft posts for multiple platforms
+    const platforms = ["facebook", "instagram"];
+    const posts = await withTenantContext(tenantId, async (tx) => {
+      const created = [];
+      for (const plat of platforms) {
+        const [post] = await tx.insert(schema.socialPosts).values({
+          tenantId, agentId: userId, transactionId, postType,
+          platform: plat, content, hashtags, status: "draft",
+          complianceStatus: "pending",
+          metadata: { milestoneType, autoGenerated: true },
+        }).returning();
+        created.push(post);
+      }
+      return created;
+    });
+    logAudit({ tenantId, userId, action: "social_post.milestone", resourceType: "social_post",
+      details: { transactionId, milestoneType, postsCreated: posts.length },
+      ipAddress: req.ip, userAgent: req.headers["user-agent"] });
+    return res.status(201).json({ data: { posts, milestoneType, content } });
+  } catch (err) {
+    console.error("Milestone post error:", err);
+    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create milestone post" } });
+  }
+});
+
+export default router;

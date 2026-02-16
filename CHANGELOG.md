@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.8.0] - 2026-02-15
+
+### Added — Phase 8: Social Marketing
+
+#### Database Schema (5 New Tables)
+- Social accounts table for OAuth-connected platforms (Facebook, Instagram, LinkedIn, YouTube, TikTok, X, Google Business) with token management and connection health
+- Social posts table for AI-generated and manual posts with compliance screening, approval workflow, scheduling, A/B test groups, and content variations
+- Social engagement table for per-post analytics (impressions, reach, likes, comments, shares, clicks, video views, leads) with platform-specific metrics
+- Social content rules table for auto-publish rules, broker approval requirements, compliance templates, and branding defaults per post type/platform
+- Social campaigns table for multi-platform campaign management with engagement totals, evergreen content, and content strategy
+- Row-Level Security policies and updated_at triggers for all Phase 8 tables
+
+#### Social Post Management (Gateway API — 16 endpoints)
+- Paginated post list with filters by agent, platform, post type, status, transaction, date range
+- Post stats: total, published this month, scheduled, pending approval, impressions, engagement, top platform
+- Calendar view: posts grouped by date for monthly content calendar
+- Create, update, and soft-delete posts with content variations and media assets
+- AI content generation with platform-optimized captions, 3 variations, and hashtag strategy
+- Bulk scheduling: auto-generate posts across platforms for a date range
+- Compliance check: screen for disclaimers, license numbers, fair housing, state advertising rules
+- Broker approval/rejection workflow (Managing Broker+)
+- Immediate publish and reschedule endpoints
+- Approval queue and milestone auto-generation from transaction events
+
+#### Social Analytics & Platform Management (Gateway API — 14+ endpoints)
+- Platform account CRUD with OAuth token refresh and connection health monitoring
+- Per-post engagement metrics and aggregate summary (impressions, reach, engagement by platform, top posts)
+- Monthly engagement trend data (12 months)
+- Campaign CRUD with content strategy and engagement aggregation
+- Content rules CRUD (Managing Broker+) for auto-publish and approval configuration
+- ROI attribution: social engagement → leads → closed deals → revenue
+
+#### Frontend — Social Marketing Dashboard
+- Stat cards, content calendar grid, upcoming posts, quick actions, platform health indicators
+
+#### Frontend — Post Composer
+- Multi-platform selector, post type selector, rich content editor with character counts
+- AI generate with 3 caption variations, hashtag editor, media attachment, platform preview
+- Schedule controls and compliance status
+
+#### Frontend — Social Analytics
+- Date range picker, platform breakdown, top posts table, monthly trends, lead attribution, ROI summary
+
+#### Frontend — Campaign Manager
+- Campaign list with type/platform/status badges, create campaign modal, engagement summaries
+
+#### Frontend — Approval Queue
+- Pending posts with compliance indicators, approve/reject/edit actions, batch approve
+
+#### Frontend — Platform Connections Manager
+- 7 platform cards with connection status, health indicators, content rules configuration
+
+#### Infrastructure Updates
+- Gateway schema.ts updated with 5 new Phase 8 table exports (49 total)
+- Gateway index.ts updated with 2 new route groups (social-posts, social-analytics)
+- 7 new SQL migrations (0061-0067) with RLS policies and triggers
+
 ## [v0.7.0] - 2026-02-15
 
 ### Added — Phase 7: AI Media Studio

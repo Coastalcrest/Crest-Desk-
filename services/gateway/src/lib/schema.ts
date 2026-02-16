@@ -42,3 +42,8 @@ export { mediaAssets } from '../../../../packages/db/src/schema/media-assets';
 export { assetLibrary } from '../../../../packages/db/src/schema/asset-library';
 export { mediaTemplates } from '../../../../packages/db/src/schema/media-templates';
 export { agentMediaPreferences } from '../../../../packages/db/src/schema/agent-media-preferences';
+export { socialAccounts } from '../../../../packages/db/src/schema/social-accounts';
+export { socialPosts } from '../../../../packages/db/src/schema/social-posts';
+export { socialEngagement } from '../../../../packages/db/src/schema/social-engagement';
+export { socialContentRules } from '../../../../packages/db/src/schema/social-content-rules';
+export { socialCampaigns } from '../../../../packages/db/src/schema/social-campaigns';

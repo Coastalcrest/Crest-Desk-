@@ -376,7 +376,7 @@ router.post("/:id/compliance-check", async (req: Request, res: Response) => {
     }
     issues.push({ rule: "equal_opportunity", severity: "medium",
       description: "Equal Housing Opportunity logo or statement should be included", passed: true });
-    const failedIssues = issues.filter((i) =>  !i.passed);
+    const failedIssues = issues.filter((i) => !i.passed);
     const finalStatus = failedIssues.length > 0 ? "failed" : "passed";
     const [updatedAsset] = await withTenantContext(tenantId, async (tx) => {
       return tx.update(schema.mediaAssets).set({

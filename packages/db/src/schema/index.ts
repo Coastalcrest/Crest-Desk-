@@ -42,3 +42,8 @@ export { mediaAssets } from './media-assets';
 export { assetLibrary } from './asset-library';
 export { mediaTemplates } from './media-templates';
 export { agentMediaPreferences } from './agent-media-preferences';
+export { socialAccounts } from './social-accounts';
+export { socialPosts } from './social-posts';
+export { socialEngagement } from './social-engagement';
+export { socialContentRules } from './social-content-rules';
+export { socialCampaigns } from './social-campaigns';
