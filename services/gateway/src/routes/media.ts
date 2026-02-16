@@ -66,7 +66,6 @@ router.get("/stats", async (req: Request, res: Response) => {
     const stats = await withTenantContext(tenantId, async (tx) => {
       const [r] = await tx.select({
         totalAssets: sql`count(*)::int`,
-        imageCount: sql\,
         imageCount: sql`count(*) filter (where asset_type = $$image$$)::int`,
         videoCount: sql`count(*) filter (where asset_type = $$video$$)::int`,
         publishedCount: sql`count(*) filter (where status = $$published$$)::int`,

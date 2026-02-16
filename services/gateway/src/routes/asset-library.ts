@@ -359,6 +359,9 @@ router.put("/preferences", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Update preferences error:", err);
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update preferences" } });
+  }
+});
+
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { tenantId } = req.user!;
