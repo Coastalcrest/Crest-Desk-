@@ -30,6 +30,11 @@ import contactsRoutes from './routes/contacts';
 import dealsRoutes from './routes/deals';
 import followUpRoutes from './routes/follow-up';
 import leadSourcesRoutes from './routes/lead-sources';
+import commissionsRoutes from './routes/commissions';
+import expensesRoutes from './routes/expenses';
+import vendorsRoutes from './routes/vendors';
+import billingRoutes from './routes/billing';
+import reportsRoutes from './routes/reports';
 
 const app = express();
 
@@ -84,6 +89,11 @@ app.use('/api/v1/contacts', contactsRoutes);
 app.use('/api/v1/deals', dealsRoutes);
 app.use('/api/v1/follow-up', followUpRoutes);
 app.use('/api/v1/lead-sources', leadSourcesRoutes);
+app.use('/api/v1/commissions', commissionsRoutes);
+app.use('/api/v1/expenses', expensesRoutes);
+app.use('/api/v1/vendors', vendorsRoutes);
+app.use('/api/v1/billing', billingRoutes);
+app.use('/api/v1/reports', reportsRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

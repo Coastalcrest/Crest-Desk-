@@ -33,3 +33,8 @@ export { followUpSequences } from '../../../../packages/db/src/schema/follow-up-
 export { followUpEnrollments } from '../../../../packages/db/src/schema/follow-up-enrollments';
 export { followUpMessages } from '../../../../packages/db/src/schema/follow-up-messages';
 export { leadSources } from '../../../../packages/db/src/schema/lead-sources';
+export { commissionSplits } from '../../../../packages/db/src/schema/commission-splits';
+export { dealExpenses } from '../../../../packages/db/src/schema/deal-expenses';
+export { agentBilling } from '../../../../packages/db/src/schema/agent-billing';
+export { vendors } from '../../../../packages/db/src/schema/vendors';
+export { commissionStructures } from '../../../../packages/db/src/schema/commission-structures';

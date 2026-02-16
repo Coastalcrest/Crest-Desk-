@@ -7,6 +7,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.6.0] - 2026-02-15
+
+### Added — Phase 6: QuickBooks & Financial Integration
+
+#### Database Schema (5 New Tables)
+- Commission structures table for configurable brokerage/agent split percentages by deal type with effective dates
+- Commission splits table for per-deal commission calculation with gross/net tracking, QB sync status, and correction lineage
+- Vendors table with contact info, payment terms, 1099 tracking, performance ratings, and turnaround metrics
+- Deal expenses table with category-based tracking (photography, staging, marketing, inspection, etc.), receipt data, and IRS category codes
+- Agent billing table for desk fees, E&O insurance, tech fees with billing period, due date, and payment status
+- Row-Level Security policies for all Phase 6 tables
+- Updated_at triggers for automatic timestamp management
+
+#### Commission Management (Gateway API — 10 endpoints)
+- Paginated commission list with filters by agent, status, deal type, date range, and sorting
+- Commission stats: YTD total, this month, pending count, average deal, top 5 agents by YTD commission
+- Pending income projections from active pipeline with probability-weighted calculations
+- Create commission splits from closed deals with automatic structure-based split calculation
+- Commission correction workflow: creates new record linked to original via correctedFromId with reason tracking
+- QuickBooks sync marking with invoice ID and account code tracking
+- Commission structure CRUD: default and agent-specific structures by deal type (Managing Broker+)
+
+#### Expense Management (Gateway API — 11 endpoints)
+- Paginated expense list with filters by deal, agent, vendor, category, paid status, date range
+- Expense stats: YTD total, this month, top categories, expense-to-revenue ratio
+- Expenses by deal and by agent aggregation endpoints
+- Full CRUD with soft-delete for deal expenses
+- Mark-as-paid workflow with payment date tracking
+- QuickBooks sync marking per expense
+- Bulk CSV upload for batch expense creation
+- Expense categories: photography, staging, marketing, inspection, appraisal, title, recording, other
+
+#### Vendor Management (Gateway API — 6 endpoints)
+- Vendor list with search, type filter, and pagination
+- Full CRUD for vendors (Managing Broker+ for create/update)
+- Vendor payment history via deal expense aggregation
+- 1099 report: all vendors requiring 1099 forms with YTD payment totals
+- Vendor types: photography, staging, inspector, appraiser, title, lender, other
+
+#### Agent Billing (Gateway API — 6 endpoints)
+- Billing record list with filters by agent, type, status, date range
+- Outstanding balance report with aging buckets (current, 30+, 60+, 90+ days) — Managing Broker+
+- Create billing invoices (Managing Broker+): desk fees, E&O insurance, tech fees, custom
+- Mark invoices as paid with automatic payment date
+- Auto-generate invoices for billing period across selected or all agents (Managing Broker+)
+
+#### Financial Reporting (Gateway API — 6 endpoints)
+- Commission dashboard: YTD total, this month, by agent (ranked), by deal type, monthly trend (12 months), pending
+- Expense summary: YTD total, this month, by category, by agent, monthly trend, expense ratio
+- Agent billing dashboard: total outstanding, aging report, per-agent breakdown
+- P&L by office: total revenue (commissions), total expenses, gross profit, profit margin, monthly trend
+- Tax preparation: 1099 vendor list with YTD payments, income summary by category, expense summary by IRS category
+- Reconciliation: pending QB sync count, last sync date, unsynced commissions and expenses
+
+#### Frontend — Commission Dashboard
+- 4 stat cards: YTD Commission, This Month, Pending Commission, Avg Deal Commission
+- Commission by Agent ranked table with YTD totals and deal counts
+- Monthly trend display (last 6 months with amounts)
+- Commission by deal type breakdown (Residential, Commercial, Rental)
+- Filter bar: date range, agent selector, deal type
+- Export CSV button
+
+#### Frontend — Expense Dashboard
+- 3 stat cards: YTD Expenses, This Month, Expense-to-Revenue Ratio
+- Expenses by category breakdown with amounts
+- Recent expenses table with date, description, category, deal, agent, amount, status
+- Add Expense modal with full form fields
+- Filter: category, agent, paid status, date range
+
+#### Frontend — Vendor Management
+- Vendor list table with name, type, YTD payments, turnaround, star rating, 1099 badge
+- Search and type filter
+- Add Vendor modal
+- Expandable payment history per vendor
+- Sort by name, spending, rating
+
+#### Frontend — Agent Billing Dashboard
+- 3 stat cards: Total Outstanding, Overdue, Collected This Month
+- Aging summary: Current, 30+, 60+, 90+ Days with dollar amounts
+- Agent billing table with amount due, due date, type, status badge
+- Mark Paid and Create Invoice actions
+- Filter: billing type, status
+
+#### Frontend — P&L by Office
+- Office/Entity selector dropdown
+- Large cards: Total Revenue, Total Expenses, Gross Profit, Net Profit (color-coded)
+- Profit margin percentage display
+- Monthly P&L table with full breakdown
+- Year selector
+
+#### Frontend — Tax Preparation
+- 1099 Vendors table with YTD payments and requirement flags
+- Income summary by category
+- Expense summary by IRS deductible category
+- Year selector and CSV/PDF export buttons
+- CPA Notes text area
+
+#### Frontend — Financial Settings
+- Commission structure configuration: default and agent-specific overrides
+- QuickBooks connection status indicator
+- Account mapping list (category → QB account code)
+- Connect/Test/Sync buttons for QB integration
+
+#### Frontend — Navigation
+- Added "Finance" nav item with DollarSign icon (visible to all roles)
+
+#### Infrastructure Updates
+- Gateway schema.ts updated with 5 new Phase 6 table exports (40 total)
+- Gateway index.ts updated with 5 new route groups (commissions, expenses, vendors, billing, reports)
+- 7 new SQL migrations (0048-0054) with RLS policies and triggers
+
 ## [v0.5.0] - 2026-02-15
 
 ### Added — Phase 5: CRM & Follow-Up

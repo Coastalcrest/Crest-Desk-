@@ -21,6 +21,7 @@ import {
   ChevronRight,
   LogOut,
   Kanban,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +59,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Documents', href: '/dashboard/documents', icon: FolderOpen },
   { label: 'Forms', href: '/dashboard/forms', icon: ClipboardList },
   { label: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
+  { label: 'Finance', href: '/dashboard/finance', icon: DollarSign },
   { label: '', href: '', icon: null, separator: true },
   { label: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
   { label: 'Social Media', href: '/dashboard/social', icon: Share2 },

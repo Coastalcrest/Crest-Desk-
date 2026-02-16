@@ -33,3 +33,8 @@ export { followUpSequences } from './follow-up-sequences';
 export { followUpEnrollments } from './follow-up-enrollments';
 export { followUpMessages } from './follow-up-messages';
 export { leadSources } from './lead-sources';
+export { commissionSplits } from './commission-splits';
+export { dealExpenses } from './deal-expenses';
+export { agentBilling } from './agent-billing';
+export { vendors } from './vendors';
+export { commissionStructures } from './commission-structures';
