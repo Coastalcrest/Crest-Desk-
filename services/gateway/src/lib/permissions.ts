@@ -106,6 +106,9 @@ export function getDefaultPermissions(role: string): string[] {
     'social:review:brokerage',
     'social:analytics:brokerage',
     'crestai:query:brokerage',
+    'security:events:read',
+    'security:settings:read',
+    'security:breach:read',
     'settings:users:invite',
     'settings:users:roles',
     'settings:compliance:manage',
@@ -134,6 +137,9 @@ export function getDefaultPermissions(role: string): string[] {
     'security:sessions:brokerage',
     'security:audit:full',
     'security:data:export',
+    'security:policies:manage',
+    'security:breach:manage',
+    'security:ip_allowlist:manage',
   ];
 }
 

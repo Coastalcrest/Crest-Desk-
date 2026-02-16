@@ -45,6 +45,9 @@ import aiCopilotRoutes from './routes/ai-copilot';
 import aiAssistRoutes from './routes/ai-assist';
 import supportTicketsRoutes from './routes/support-tickets';
 import searchRoutes from './routes/search';
+import securityEventsRoutes from './routes/security-events';
+import securitySettingsRoutes from './routes/security-settings';
+import breachManagementRoutes from './routes/breach-management';
 
 const app = express();
 
@@ -114,6 +117,9 @@ app.use('/api/v1/ai-copilot', aiCopilotRoutes);
 app.use('/api/v1/ai-assist', aiAssistRoutes);
 app.use('/api/v1/support-tickets', supportTicketsRoutes);
 app.use('/api/v1/search', searchRoutes);
+app.use('/api/v1/security', securityEventsRoutes);
+app.use('/api/v1/security-settings', securitySettingsRoutes);
+app.use('/api/v1/breach', breachManagementRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 
