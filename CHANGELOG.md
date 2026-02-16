@@ -7,6 +7,110 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-02-15
+
+### Added — Phase 3: E-Signatures & Closing
+
+#### Database Schema (8 New Tables + 1 Extended)
+- Signing envelopes table for grouping documents into signing packages
+- Signing requests table with per-signer tokens, link expiry, and status tracking
+- Signature fields table for positioning signature/initial/date fields on documents
+- Signatures table with HMAC-SHA256 tamper seals and certificate references
+- Certificates of completion table with PDF path, hash, and jurisdiction info
+- Signing audit log table (immutable, insert-only) for signing event tracking
+- Closing packages table for assembling final transaction document bundles
+- State signing rules table for jurisdiction-specific signing requirements
+- Extended documents table with file_hash, requires_signature, signature_status, signing_deadline
+- Row-Level Security policies for all Phase 3 tables
+- Updated_at triggers for automatic timestamp management
+
+#### Signing Envelope Management (Gateway API)
+- Create signing envelopes with document selection and deadline
+- Send envelopes to signers with unique secure tokens (32-byte random)
+- Per-signer signing requests with 7-day link expiry
+- State compliance auto-detection (witness/notary requirements from state rules)
+- Envelope status lifecycle: draft → sent → in_progress → fully_signed → cancelled
+- Signer status tracking: pending → sent → opened → signed → declined
+- Send reminder emails to pending signers
+- Add witness signers to envelopes (required for some Oregon document types)
+- List and filter envelopes by transaction
+- State signing rules lookup endpoint
+
+#### Public Signing Experience (Gateway API — No Auth)
+- Token-based signing access (no account required for signers)
+- Mark-as-opened tracking with IP and device info
+- Signature submission with full name, typed/drawn signature, and consent
+- HMAC-SHA256 tamper seal generation for each signature
+- Signing completion with automatic envelope status rollup
+- Decline-to-sign flow with reason capture
+- IP address and user agent logging for legal compliance
+- Signing link expiry validation
+
+#### Closing Package Management (Gateway API)
+- Create closing packages with document selection and ordering
+- Package status lifecycle: draft → assembling → ready_for_review → approved → submitted_to_title → recorded
+- Submit to title company workflow
+- Final approval by Principal Broker+ with permission check
+- Signature verification endpoint with tamper seal validation
+- Table of contents generation
+- PDF and ZIP archive path tracking
+
+#### E-Signature Cryptographic Service (Rust/Actix-Web)
+- SHA-256 document hashing endpoint
+- HMAC-SHA256 tamper seal generation using configurable secret key
+- Tamper seal verification with constant-time comparison (timing-attack resistant)
+- Signature hash generation (signer name + document ID + timestamp)
+- Certificate of completion hash generation
+- Health check endpoint
+- Dockerfile with multi-stage Rust build (1.77-slim builder, bookworm-slim runtime)
+- Runs on port 8020
+
+#### State Signing Rules (Seed Data — Oregon + Federal)
+- Oregon purchase agreement rules (e-signature allowed, consent required)
+- Oregon property condition disclosure (witness not required)
+- Oregon agency disclosure (e-signature allowed)
+- Oregon lead-based paint disclosure (e-signature allowed)
+- Federal baseline rules for all document types
+- Notary and remote notary requirements per document type
+- Wet signature vs. e-signature allowance per jurisdiction
+- Record retention period requirements (5-10 years by type)
+
+#### Frontend — Signing Dashboard
+- Signing dashboard per transaction with envelope management
+- Create envelope modal with document selector and signer list
+- Envelope cards with expand/collapse showing signer progress
+- Signer status cards with role, email, and signing timestamp
+- Status summary grid (Draft, Sent, In Progress, Fully Signed counts)
+- Send reminder and resend link quick actions
+- Signing event timeline with chronological activity feed
+- Real-time data refresh with React Query
+
+#### Frontend — Public Signing Experience
+- Standalone public signing page (no dashboard layout, no auth required)
+- CrestDesk branded header with logo
+- Document list display with signing consent checkbox
+- UETA/ESIGN Act consent agreement
+- Type-to-sign and draw-to-sign signature input modes
+- Full name confirmation for legal compliance
+- Decline-to-sign flow with reason input
+- Success confirmation with certificate of completion reference
+- Expired/invalid token error handling
+
+#### Frontend — Closing Package Assembly
+- Closing package management page per transaction
+- Create package modal with document selection
+- Package status cards with progress summary
+- Document ordering display with signing status indicators
+- Submit to Title Company workflow
+- Final approval button (Principal Broker+ role gate)
+- Download PDF and ZIP archive links
+- Status badge color coding for all package states
+
+#### Infrastructure Updates
+- Gateway schema.ts updated with 8 new Phase 3 table exports (23 total)
+- Gateway index.ts updated with 3 new route groups (signing, sign, closing-packages)
+- 11 new SQL migrations (0021-0031) with RLS policies and triggers
+
 ## [v0.2.0] - 2026-02-15
 
 ### Added — Phase 2: Documents & Forms

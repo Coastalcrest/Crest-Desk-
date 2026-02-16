@@ -1,46 +1,38 @@
-//! CrestDesk E-Signature Service
-//!
-//! Handles digital signature creation, verification, and tamper detection.
-//! ESIGN Act and UETA compliant.
+use actix_web::{web, App, HttpServer, middleware::Logger};
 
-use actix_web::{web, App, HttpServer, HttpResponse, middleware};
-use tracing::info;
-
-mod config;
 mod crypto;
-mod routes;
-mod error;
+mod handlers;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-    let addr = format!("0.0.0.0:{}", port);
+    let port = std::env::var("ESIGN_PORT")
+        .unwrap_or_else(|_| "8020".to_string())
+        .parse::<u16>()
+        .expect("ESIGN_PORT must be a number");
 
-    info!("Starting CrestDesk E-Sign service on {}", addr);
+    let seal_secret = std::env::var("ESIGN_SEAL_SECRET")
+        .unwrap_or_else(|_| "crestdesk-dev-seal-secret".to_string());
 
-    HttpServer::new(|| {
+    let app_state = web::Data::new(handlers::AppState {
+        seal_secret,
+    });
+
+    log::info!("CrestDesk E-Sign service listening on port {}", port);
+
+    HttpServer::new(move || {
         App::new()
-            .route("/health", web::get().to(health_check))
-            .service(
-                web::scope("/api/v1/esign")
-                    .route("/sign", web::post().to(routes::create_signature))
-                    .route("/verify", web::post().to(routes::verify_signature))
-                    .route("/tamper-check", web::post().to(routes::check_tamper))
-            )
+            .wrap(Logger::default())
+            .app_data(app_state.clone())
+            .route("/health", web::get().to(handlers::health))
+            .route("/api/signature/hash", web::post().to(handlers::generate_signature_hash))
+            .route("/api/tamper-seal/generate", web::post().to(handlers::generate_tamper_seal))
+            .route("/api/tamper-seal/verify", web::post().to(handlers::verify_tamper_seal))
+            .route("/api/document/hash", web::post().to(handlers::generate_document_hash))
+            .route("/api/certificate/hash", web::post().to(handlers::generate_certificate_hash))
     })
-    .bind(&addr)?
+    .bind(("0.0.0.0", port))?
     .run()
     .await
-}
-
-async fn health_check() -> HttpResponse {
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "healthy",
-        "service": "crestdesk-esign"
-    }))
 }

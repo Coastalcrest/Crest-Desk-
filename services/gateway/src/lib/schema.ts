@@ -13,3 +13,11 @@ export { formInstances } from '../../../../packages/db/src/schema/form-instances
 export { complianceChecklists } from '../../../../packages/db/src/schema/compliance-checklists';
 export { documentTags } from '../../../../packages/db/src/schema/document-tags';
 export { documentAuditLog } from '../../../../packages/db/src/schema/document-audit-log';
+export { signingEnvelopes } from '../../../../packages/db/src/schema/signing-envelopes';
+export { signingRequests } from '../../../../packages/db/src/schema/signing-requests';
+export { signatureFields } from '../../../../packages/db/src/schema/signature-fields';
+export { signatures } from '../../../../packages/db/src/schema/signatures';
+export { certificatesOfCompletion } from '../../../../packages/db/src/schema/certificates-of-completion';
+export { signingAuditLog } from '../../../../packages/db/src/schema/signing-audit-log';
+export { closingPackages } from '../../../../packages/db/src/schema/closing-packages';
+export { stateSigningRules } from '../../../../packages/db/src/schema/state-signing-rules';

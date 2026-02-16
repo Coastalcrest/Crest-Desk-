@@ -21,6 +21,9 @@ import transactionsRoutes from './routes/transactions';
 import documentsRoutes from './routes/documents';
 import formsRoutes from './routes/forms';
 import checklistsRoutes from './routes/checklists';
+import signingRoutes from './routes/signing';
+import signPublicRoutes from './routes/sign-public';
+import closingPackagesRoutes from './routes/closing-packages';
 
 const app = express();
 
@@ -66,6 +69,9 @@ app.use('/api/v1/transactions', transactionsRoutes);
 app.use('/api/v1/documents', documentsRoutes);
 app.use('/api/v1/forms', formsRoutes);
 app.use('/api/v1/compliance-checklists', checklistsRoutes);
+app.use('/api/v1/signing', signingRoutes);
+app.use('/api/v1/sign', signPublicRoutes);
+app.use('/api/v1/closing-packages', closingPackagesRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 
