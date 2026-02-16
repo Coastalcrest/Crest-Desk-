@@ -22,6 +22,7 @@ import {
   LogOut,
   Kanban,
   DollarSign,
+  Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +61,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Forms', href: '/dashboard/forms', icon: ClipboardList },
   { label: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
   { label: 'Finance', href: '/dashboard/finance', icon: DollarSign },
+  { label: 'Media Studio', href: '/dashboard/media', icon: Wand2 },
   { label: '', href: '', icon: null, separator: true },
   { label: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
   { label: 'Social Media', href: '/dashboard/social', icon: Share2 },

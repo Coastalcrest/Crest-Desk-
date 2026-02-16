@@ -38,3 +38,7 @@ export { dealExpenses } from '../../../../packages/db/src/schema/deal-expenses';
 export { agentBilling } from '../../../../packages/db/src/schema/agent-billing';
 export { vendors } from '../../../../packages/db/src/schema/vendors';
 export { commissionStructures } from '../../../../packages/db/src/schema/commission-structures';
+export { mediaAssets } from '../../../../packages/db/src/schema/media-assets';
+export { assetLibrary } from '../../../../packages/db/src/schema/asset-library';
+export { mediaTemplates } from '../../../../packages/db/src/schema/media-templates';
+export { agentMediaPreferences } from '../../../../packages/db/src/schema/agent-media-preferences';

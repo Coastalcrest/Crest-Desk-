@@ -38,3 +38,7 @@ export { dealExpenses } from './deal-expenses';
 export { agentBilling } from './agent-billing';
 export { vendors } from './vendors';
 export { commissionStructures } from './commission-structures';
+export { mediaAssets } from './media-assets';
+export { assetLibrary } from './asset-library';
+export { mediaTemplates } from './media-templates';
+export { agentMediaPreferences } from './agent-media-preferences';

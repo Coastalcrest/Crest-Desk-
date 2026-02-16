@@ -35,6 +35,8 @@ import expensesRoutes from './routes/expenses';
 import vendorsRoutes from './routes/vendors';
 import billingRoutes from './routes/billing';
 import reportsRoutes from './routes/reports';
+import mediaRoutes from './routes/media';
+import assetLibraryRoutes from './routes/asset-library';
 
 const app = express();
 
@@ -94,6 +96,8 @@ app.use('/api/v1/expenses', expensesRoutes);
 app.use('/api/v1/vendors', vendorsRoutes);
 app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/media', mediaRoutes);
+app.use('/api/v1/asset-library', assetLibraryRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

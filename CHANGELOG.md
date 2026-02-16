@@ -7,6 +7,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-02-15
+
+### Added — Phase 7: AI Media Studio
+
+#### Database Schema (4 New Tables)
+- Media assets table for AI-generated images, videos, and graphics with compliance tracking, generation prompts, publishing status, and S3 file paths
+- Asset library table for royalty-free stock photos, icons, backgrounds, music, sound effects, fonts, and animations with seasonal collections and download tracking
+- Media templates table for reusable generation templates (listing graphics, social graphics, tour videos, market updates) with configurable output formats and dimensions
+- Agent media preferences table for learned style preferences, color choices, branding defaults, and favorite templates/assets
+- Row-Level Security policies for all Phase 7 tables (asset_library and media_templates allow global/shared items via NULL tenant_id)
+- Updated_at triggers for automatic timestamp management
+
+#### Media Asset Management (Gateway API — 13 endpoints)
+- Paginated media asset list with filters by agent, asset type (image/video/audio/graphic), media type, status, compliance status, and transaction
+- Media stats: total assets, image count, video count, generated this month, published count, pending compliance
+- AI image generation: accepts prompt, template, branding, and overlay params; creates draft asset with generation metadata
+- AI video generation: accepts storyboard scenes, music, voiceover, captions; creates draft asset
+- Batch generation: full marketing set for a listing (Just Listed, social graphics, tour video) in one request
+- Single asset detail, update (title/tags/metadata), and soft-delete
+- Compliance check: simulates screening for disclaimers, license numbers, fair housing, virtual staging disclosure
+- Broker approval workflow: approve or reject media with reason tracking (Managing Broker+)
+- Publish to platforms: mark as published with platform list and timestamp
+- Compliance review queue: pending assets for broker review (Managing Broker+)
+
+#### Asset Library & Templates (Gateway API — 14 endpoints)
+- Library asset list with filters by category, subcategory, license type, seasonal, tags, and search
+- Category listing with asset counts
+- Seasonal asset recommendations (based on current month)
+- AI-powered asset recommendations based on agent preferences
+- Upload custom assets to library (Managing Broker+ for global)
+- Library asset detail, update, and soft-delete
+- Download tracking with count increment
+- Template CRUD: list, create, detail, update, delete (Managing Broker+ for create/update/delete)
+- Template filters: type (listing_graphic, social_graphic, tour_video, etc.), category, global, premium
+- Agent media preferences: get and update preferred styles, music mood, colors, branding, favorites
+
+#### Frontend — Media Studio Dashboard
+- Hero section with gradient background and "AI Media Studio" heading
+- Quick action cards: Generate Image, Create Video, Browse Library (large icon cards)
+- Recent Projects grid with thumbnails, type badges, status badges, and dates
+- Templates carousel: Just Listed, Under Contract, Just Sold, Market Update, Social Post
+- Stats row: Images Generated, Videos Created, Published, Pending Review
+- Favorites section with recently favorited assets
+
+#### Frontend — Image Generator
+- Project type sidebar: Listing Graphic, Social Graphic, Virtual Staging, Property Enhancement, Custom
+- Center workspace with large preview area
+- Right panel: property selector, branding toggle, color scheme, overlay text, style selector
+- Generate/regenerate buttons with variation support
+- Generated results carousel with select/download/publish actions
+- Compliance status indicator (green check or yellow warning)
+- Template selector dropdown
+
+#### Frontend — Video Generator
+- Video type tabs: Tour Video, Market Update, Testimonial, Agent Intro, Custom
+- Storyboard area with draggable scene cards (thumbnail, duration, text overlay)
+- Settings panel: music mood selector, voiceover toggle, captions toggle, branding options
+- Preview area with play button overlay
+- Output format selector: 15s Reels, 30s Stories, 60s YouTube
+- Generate button with progress bar
+- Generated videos section with preview, download, publish buttons
+
+#### Frontend — Asset Library
+- Category tabs: All, Stock Photos, Icons, Backgrounds, Music, Sound Effects, Fonts, Animations
+- Search with filters (category, mood, color, seasonal, license)
+- Grid of asset cards with thumbnails, names, category badges, download counts, license badges
+- Hover actions: Use and Favorite buttons
+- AI "Recommended for You" sidebar
+- Seasonal collection banner
+- Upload button for custom assets
+- Pagination controls
+
+#### Frontend — Compliance Review Queue
+- Stat cards: Pending Review, Approved Today, Issues Found
+- Filter tabs: All, Pending, Passed, Failed
+- Media review cards with thumbnails, agent name, media type, compliance status
+- Expandable compliance issue list with rule references and suggested fixes
+- Action buttons: Approve, Request Revisions, Reject
+- Batch approve mode
+
+#### Frontend — Generated Media History
+- Timeline view with date headers
+- Media history cards: thumbnail, title, type, status, compliance status, published platforms
+- Filters: type, status, date range, agent
+- Actions: View, Regenerate, Download, Delete
+- Stats summary: Total Generated, Total Published, Compliance Pass Rate
+
+#### Frontend — Navigation
+- Added "Media Studio" nav item with Wand2 icon (visible to all roles)
+
+#### Infrastructure Updates
+- Gateway schema.ts updated with 4 new Phase 7 table exports (44 total)
+- Gateway index.ts updated with 2 new route groups (media, asset-library)
+- 6 new SQL migrations (0055-0060) with RLS policies and triggers
+
 ## [v0.6.0] - 2026-02-15
 
 ### Added — Phase 6: QuickBooks & Financial Integration
