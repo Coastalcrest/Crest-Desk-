@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -9,23 +9,19 @@ import {
   Package,
   FileText,
   CheckCircle2,
-  XCircle,
   Clock,
+  AlertCircle,
+  Loader2,
+  X,
+  Send,
+  Shield,
   Download,
   Archive,
-  Send,
-  ThumbsUp,
-  ThumbsDown,
   GripVertical,
-  ChevronDown,
   ChevronRight,
-  Loader2,
-  AlertCircle,
-  List,
-  Shield,
-  X,
-  Mail,
-  User,
+  Eye,
+  FileCheck,
+  FolderOpen,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { addToast } from '@/hooks/use-toast';
@@ -35,67 +31,93 @@ import { cn } from '@/lib/utils';
 // Types
 // ---------------------------------------------------------------------------
 
-interface ClosingDocument {
+interface PackageDocument {
   id: string;
   name: string;
   type: string;
-  status: 'signed' | 'unsigned' | 'not_applicable';
-  included: boolean;
+  pageCount: number;
+  isSigned: boolean;
+  signingStatus: 'unsigned' | 'partially_signed' | 'fully_signed';
   order: number;
-}
-
-interface ComplianceCheckItem {
-  id: string;
-  label: string;
-  passed: boolean;
-  details: string | null;
-}
-
-interface ApprovalInfo {
-  status: 'none' | 'pending' | 'approved' | 'rejected';
-  approverName: string | null;
-  approvedAt: string | null;
-  rejectedReason: string | null;
 }
 
 interface ClosingPackage {
   id: string;
-  packageName: string;
-  status: 'draft' | 'assembled' | 'submitted' | 'approved' | 'rejected';
-  documentOrder: ClosingDocument[];
-  tableOfContents: string;
-  readyForClosing: boolean;
-  submittedToTitleCompany: boolean;
-  submissionTimestamp: string | null;
-  complianceItems: ComplianceCheckItem[];
-  approval: ApprovalInfo;
+  name: string;
+  status: 'draft' | 'assembling' | 'ready_for_review' | 'approved' | 'submitted_to_title' | 'recorded';
+  documentCount: number;
+  documents: PackageDocument[];
+  tableOfContents: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-interface ClosingPageData {
-  transactionId: string;
-  packages: ClosingPackage[];
-  availableDocuments: TransactionDocument[];
 }
 
 interface TransactionDocument {
   id: string;
   name: string;
   type: string;
-  status: string;
+  pageCount: number;
+  isSigned: boolean;
+}
+
+interface ClosingPackagesResponse {
+  packages: ClosingPackage[];
+  availableDocuments: TransactionDocument[];
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const PACKAGE_STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
-  assembled: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Assembled' },
-  submitted: { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Submitted' },
-  approved: { bg: 'bg-green-50', text: 'text-green-700', label: 'Approved' },
-  rejected: { bg: 'bg-red-50', text: 'text-red-700', label: 'Rejected' },
+const PACKAGE_STATUS_CONFIG: Record<
+  string,
+  { bg: string; text: string; label: string; dotColor: string }
+> = {
+  draft: {
+    bg: 'bg-gray-100',
+    text: 'text-gray-700',
+    label: 'Draft',
+    dotColor: 'bg-gray-400',
+  },
+  assembling: {
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    label: 'Assembling',
+    dotColor: 'bg-blue-400',
+  },
+  ready_for_review: {
+    bg: 'bg-amber-50',
+    text: 'text-amber-700',
+    label: 'Ready for Review',
+    dotColor: 'bg-amber-400',
+  },
+  approved: {
+    bg: 'bg-green-50',
+    text: 'text-green-700',
+    label: 'Approved',
+    dotColor: 'bg-green-400',
+  },
+  submitted_to_title: {
+    bg: 'bg-purple-50',
+    text: 'text-purple-700',
+    label: 'Submitted to Title',
+    dotColor: 'bg-purple-400',
+  },
+  recorded: {
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-700',
+    label: 'Recorded',
+    dotColor: 'bg-emerald-500',
+  },
+};
+
+const SIGNING_STATUS_CONFIG: Record<
+  string,
+  { icon: typeof CheckCircle2; color: string; label: string }
+> = {
+  unsigned: { icon: Clock, color: 'text-gray-400', label: 'Unsigned' },
+  partially_signed: { icon: AlertCircle, color: 'text-amber-500', label: 'Partial' },
+  fully_signed: { icon: CheckCircle2, color: 'text-green-500', label: 'Signed' },
 };
 
 // ---------------------------------------------------------------------------
@@ -111,296 +133,423 @@ function formatDate(iso: string | null): string {
   }).format(new Date(iso));
 }
 
-function formatDateTime(iso: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(iso));
-}
-
 // ---------------------------------------------------------------------------
-// Document Row with Drag Handle
+// Status Badge
 // ---------------------------------------------------------------------------
 
-function DocumentRow({
-  doc,
-  onToggleInclude,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
-}: {
-  doc: ClosingDocument;
-  onToggleInclude: (docId: string) => void;
-  onMoveUp: (docId: string) => void;
-  onMoveDown: (docId: string) => void;
-  isFirst: boolean;
-  isLast: boolean;
-}) {
-  const statusIcon =
-    doc.status === 'signed' ? (
-      <CheckCircle2 className="h-4 w-4 text-green-500" />
-    ) : doc.status === 'unsigned' ? (
-      <Clock className="h-4 w-4 text-amber-500" />
-    ) : (
-      <XCircle className="h-4 w-4 text-gray-400" />
-    );
-
-  const statusLabel =
-    doc.status === 'signed'
-      ? 'Signed'
-      : doc.status === 'unsigned'
-        ? 'Unsigned'
-        : 'N/A';
-
+function StatusBadge({ status }: { status: string }) {
+  const config = PACKAGE_STATUS_CONFIG[status] ?? PACKAGE_STATUS_CONFIG.draft;
   return (
-    <div
+    <span
       className={cn(
-        'flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 transition-colors',
-        doc.included ? 'bg-white' : 'bg-gray-50 opacity-60',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+        config.bg,
+        config.text,
       )}
     >
-      {/* Drag Handle / Reorder Buttons */}
-      <div className="flex flex-col gap-0.5">
-        <button
-          type="button"
-          onClick={() => onMoveUp(doc.id)}
-          disabled={isFirst || !doc.included}
-          className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 disabled:invisible"
-        >
-          <ChevronRight className="h-3 w-3 -rotate-90" />
-        </button>
-        <GripVertical className="h-4 w-4 text-gray-300" />
-        <button
-          type="button"
-          onClick={() => onMoveDown(doc.id)}
-          disabled={isLast || !doc.included}
-          className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 disabled:invisible"
-        >
-          <ChevronRight className="h-3 w-3 rotate-90" />
-        </button>
+      <span className={cn('h-1.5 w-1.5 rounded-full', config.dotColor)} />
+      {config.label}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stat Card
+// ---------------------------------------------------------------------------
+
+function StatCard({
+  label,
+  count,
+  icon: Icon,
+  bgColor,
+  borderColor,
+  textColor,
+  iconColor,
+}: {
+  label: string;
+  count: number;
+  icon: typeof Package;
+  bgColor: string;
+  borderColor: string;
+  textColor: string;
+  iconColor: string;
+}) {
+  return (
+    <div className={cn('rounded-lg border p-4', bgColor, borderColor)}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+          {label}
+        </p>
+        <Icon className={cn('h-4 w-4', iconColor)} />
       </div>
+      <p className={cn('mt-1 text-2xl font-bold', textColor)}>{count}</p>
+    </div>
+  );
+}
 
-      {/* Checkbox */}
-      <input
-        type="checkbox"
-        checked={doc.included}
-        onChange={() => onToggleInclude(doc.id)}
-        className="h-4 w-4 rounded border-gray-300 text-[#2A9D8F] focus:ring-[#2A9D8F]"
-      />
+// ---------------------------------------------------------------------------
+// Document Order Row
+// ---------------------------------------------------------------------------
 
-      {/* Document Info */}
+function DocumentOrderRow({ doc }: { doc: PackageDocument }) {
+  const signingConfig =
+    SIGNING_STATUS_CONFIG[doc.signingStatus] ?? SIGNING_STATUS_CONFIG.unsigned;
+  const SigningIcon = signingConfig.icon;
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 px-3 py-2.5 transition-colors hover:bg-gray-50">
+      <GripVertical className="h-4 w-4 flex-shrink-0 cursor-grab text-gray-300" />
+      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-[#1B3A5C]/10 text-xs font-semibold text-[#1B3A5C]">
+        {doc.order}
+      </div>
       <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-gray-900">{doc.name}</p>
-        <p className="text-xs text-gray-500">{doc.type}</p>
+        <p className="text-xs text-gray-400">{doc.type}</p>
       </div>
-
-      {/* Status */}
-      <div className="flex items-center gap-1">
-        {statusIcon}
-        <span className="text-xs text-gray-600">{statusLabel}</span>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-gray-400">{doc.pageCount} pg</span>
+        <div className="flex items-center gap-1">
+          <SigningIcon className={cn('h-3.5 w-3.5', signingConfig.color)} />
+          <span className={cn('text-xs font-medium', signingConfig.color)}>
+            {signingConfig.label}
+          </span>
+        </div>
+        {doc.isSigned && <CheckCircle2 className="h-4 w-4 text-green-500" />}
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Compliance Summary
+// Package Detail Panel
 // ---------------------------------------------------------------------------
 
-function ComplianceSummary({ items }: { items: ComplianceCheckItem[] }) {
-  const passedCount = items.filter((i) => i.passed).length;
-  const failedCount = items.length - passedCount;
-
+function PackageDetailPanel({
+  pkg,
+  onClose,
+  onSubmitToTitle,
+  onApprove,
+  isSubmitting,
+  isApproving,
+}: {
+  pkg: ClosingPackage;
+  onClose: () => void;
+  onSubmitToTitle: (packageId: string) => void;
+  onApprove: (packageId: string) => void;
+  isSubmitting: boolean;
+  isApproving: boolean;
+}) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-[#1B3A5C]" />
-          <h4 className="text-sm font-semibold text-gray-900">Compliance Checklist</h4>
-        </div>
-        <div className="flex items-center gap-2">
-          {passedCount > 0 && (
-            <span className="flex items-center gap-0.5 text-xs text-green-600">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {passedCount}
-            </span>
-          )}
-          {failedCount > 0 && (
-            <span className="flex items-center gap-0.5 text-xs text-red-600">
-              <XCircle className="h-3.5 w-3.5" />
-              {failedCount}
-            </span>
-          )}
-        </div>
-      </div>
-      <ul className="divide-y divide-gray-50">
-        {items.map((item) => (
-          <li key={item.id} className="flex items-center gap-3 px-4 py-2.5">
-            {item.passed ? (
-              <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-500" />
-            ) : (
-              <XCircle className="h-4 w-4 flex-shrink-0 text-red-500" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p
-                className={cn(
-                  'text-sm',
-                  item.passed ? 'text-gray-600' : 'font-medium text-gray-900',
-                )}
-              >
-                {item.label}
-              </p>
-              {item.details && (
-                <p className="text-xs text-gray-400">{item.details}</p>
-              )}
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      {/* Panel Header */}
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <FolderOpen className="h-5 w-5 text-[#1B3A5C]" />
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">{pkg.name}</h3>
+            <div className="mt-0.5 flex items-center gap-2">
+              <StatusBadge status={pkg.status} />
+              <span className="text-xs text-gray-400">
+                {pkg.documentCount} document{pkg.documentCount !== 1 ? 's' : ''}
+              </span>
             </div>
-          </li>
-        ))}
-        {items.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-gray-400">
-            No compliance checks configured
-          </li>
-        )}
-      </ul>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Approval Section
-// ---------------------------------------------------------------------------
-
-function ApprovalSection({ approval }: { approval: ApprovalInfo }) {
-  if (approval.status === 'none') return null;
-
-  const config = {
-    pending: { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: Clock, iconColor: 'text-yellow-500' },
-    approved: { bg: 'bg-green-50', border: 'border-green-200', icon: ThumbsUp, iconColor: 'text-green-500' },
-    rejected: { bg: 'bg-red-50', border: 'border-red-200', icon: ThumbsDown, iconColor: 'text-red-500' },
-  }[approval.status] ?? { bg: 'bg-gray-50', border: 'border-gray-200', icon: Clock, iconColor: 'text-gray-500' };
-
-  const ApprovalIcon = config.icon;
-
-  return (
-    <div className={cn('rounded-lg border p-4', config.bg, config.border)}>
-      <div className="flex items-start gap-3">
-        <ApprovalIcon className={cn('mt-0.5 h-5 w-5 flex-shrink-0', config.iconColor)} />
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900">
-            {approval.status === 'pending'
-              ? 'Approval Pending'
-              : approval.status === 'approved'
-                ? 'Package Approved'
-                : 'Package Rejected'}
-          </h4>
-          {approval.approverName && (
-            <p className="mt-0.5 text-sm text-gray-600">
-              By: {approval.approverName}
-              {approval.approvedAt ? ` on ${formatDate(approval.approvedAt)}` : ''}
-            </p>
-          )}
-          {approval.rejectedReason && (
-            <p className="mt-1 text-sm text-red-700">
-              Reason: {approval.rejectedReason}
-            </p>
-          )}
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
-    </div>
-  );
-}
 
-// ---------------------------------------------------------------------------
-// Table of Contents Preview
-// ---------------------------------------------------------------------------
-
-function TableOfContentsPreview({ content }: { content: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-4 py-3"
-      >
-        <div className="flex items-center gap-2">
-          <List className="h-4 w-4 text-[#1B3A5C]" />
-          <h4 className="text-sm font-semibold text-gray-900">Table of Contents</h4>
-        </div>
-        {expanded ? (
-          <ChevronDown className="h-4 w-4 text-gray-400" />
+      {/* Document Order */}
+      <div className="px-5 py-4">
+        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          Document Order
+        </h4>
+        {pkg.documents.length > 0 ? (
+          <div className="space-y-1.5">
+            {[...pkg.documents]
+              .sort((a, b) => a.order - b.order)
+              .map((doc) => (
+                <DocumentOrderRow key={doc.id} doc={doc} />
+              ))}
+          </div>
         ) : (
-          <ChevronRight className="h-4 w-4 text-gray-400" />
+          <div className="rounded-lg border-2 border-dashed border-gray-200 py-6 text-center">
+            <FileText className="mx-auto mb-2 h-6 w-6 text-gray-300" />
+            <p className="text-sm text-gray-400">No documents in this package</p>
+          </div>
         )}
-      </button>
-      {expanded && (
-        <div className="border-t border-gray-100 px-4 py-3">
-          {content ? (
-            <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono leading-relaxed">
-              {content}
-            </pre>
-          ) : (
-            <p className="text-sm text-gray-400 italic">
-              Table of contents will be auto-generated when the package is assembled.
-            </p>
-          )}
+      </div>
+
+      {/* Table of Contents */}
+      {pkg.tableOfContents && (
+        <div className="border-t border-gray-100 px-5 py-4">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Table of Contents
+          </h4>
+          <pre className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-600">
+            {pkg.tableOfContents}
+          </pre>
         </div>
       )}
+
+      {/* Actions */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 px-5 py-4">
+        {/* Download PDF */}
+        <a
+          href={`/api/v1/closing-packages/${pkg.id}/download-pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <Download className="h-3 w-3" />
+          Download PDF
+        </a>
+
+        {/* Download ZIP */}
+        <a
+          href={`/api/v1/closing-packages/${pkg.id}/download-zip`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <Archive className="h-3 w-3" />
+          Download ZIP
+        </a>
+
+        {/* Conditional Actions */}
+        {pkg.status === 'ready_for_review' && (
+          <button
+            type="button"
+            onClick={() => onSubmitToTitle(pkg.id)}
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#2A9D8F] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#238b7e] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Send className="h-3 w-3" />
+            )}
+            Submit to Title
+          </button>
+        )}
+
+        {pkg.status === 'submitted_to_title' && (
+          <button
+            type="button"
+            onClick={() => onApprove(pkg.id)}
+            disabled={isApproving}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#1B3A5C] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a4d73] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isApproving ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Shield className="h-3 w-3" />
+            )}
+            Approve Package
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Submit to Title Modal
+// Package Card
 // ---------------------------------------------------------------------------
 
-function SubmitToTitleModal({
+function PackageCard({
+  pkg,
+  onSelect,
+  onAssemble,
+  onSubmitToTitle,
+  onApprove,
+  isSubmitting,
+  isApproving,
+}: {
+  pkg: ClosingPackage;
+  onSelect: (pkg: ClosingPackage) => void;
+  onAssemble: (packageId: string) => void;
+  onSubmitToTitle: (packageId: string) => void;
+  onApprove: (packageId: string) => void;
+  isSubmitting: boolean;
+  isApproving: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <button
+        type="button"
+        onClick={() => onSelect(pkg)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-[#1B3A5C]/10 p-2">
+            <Package className="h-4 w-4 text-[#1B3A5C]" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">{pkg.name}</h3>
+            <div className="mt-0.5 flex items-center gap-3">
+              <span className="flex items-center gap-1 text-xs text-gray-500">
+                <FileText className="h-3 w-3" />
+                {pkg.documentCount} doc{pkg.documentCount !== 1 ? 's' : ''}
+              </span>
+              <span className="flex items-center gap-1 text-xs text-gray-500">
+                <Clock className="h-3 w-3" />
+                {formatDate(pkg.createdAt)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <StatusBadge status={pkg.status} />
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+        </div>
+      </button>
+
+      {/* Action Buttons Row */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 px-5 py-3">
+        <button
+          type="button"
+          onClick={() => onSelect(pkg)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <Eye className="h-3 w-3" />
+          View Details
+        </button>
+
+        {pkg.status === 'draft' && (
+          <button
+            type="button"
+            onClick={() => onAssemble(pkg.id)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#2A9D8F] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#238b7e]"
+          >
+            <FileCheck className="h-3 w-3" />
+            Assemble
+          </button>
+        )}
+
+        {pkg.status === 'ready_for_review' && (
+          <button
+            type="button"
+            onClick={() => onSubmitToTitle(pkg.id)}
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#2A9D8F] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#238b7e] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Send className="h-3 w-3" />
+            )}
+            Submit to Title
+          </button>
+        )}
+
+        {pkg.status === 'submitted_to_title' && (
+          <button
+            type="button"
+            onClick={() => onApprove(pkg.id)}
+            disabled={isApproving}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#1B3A5C] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a4d73] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isApproving ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Shield className="h-3 w-3" />
+            )}
+            Approve
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Create Package Modal
+// ---------------------------------------------------------------------------
+
+function CreatePackageModal({
   open,
   onClose,
-  packageId,
+  availableDocuments,
   transactionId,
 }: {
   open: boolean;
   onClose: () => void;
-  packageId: string;
+  availableDocuments: TransactionDocument[];
   transactionId: string;
 }) {
   const queryClient = useQueryClient();
-  const [titleEmail, setTitleEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [packageName, setPackageName] = useState('');
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [tableOfContents, setTableOfContents] = useState('');
 
-  const submitMutation = useMutation({
-    mutationFn: (payload: { titleCompanyEmail: string; message: string }) =>
-      api(`/transactions/${transactionId}/closing/${packageId}/submit`, {
+  const createMutation = useMutation({
+    mutationFn: (payload: {
+      name: string;
+      transactionId: string;
+      documentIds: string[];
+      tableOfContents: string | null;
+    }) =>
+      api('/closing-packages', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
-      addToast({ type: 'success', title: 'Package submitted to title company' });
+      addToast({ type: 'success', title: 'Closing package created' });
       queryClient.invalidateQueries({ queryKey: ['closing-packages', transactionId] });
-      setTitleEmail('');
-      setMessage('');
+      resetForm();
       onClose();
     },
     onError: (err: Error) => {
-      addToast({ type: 'error', title: 'Submission failed', message: err.message });
+      addToast({
+        type: 'error',
+        title: 'Failed to create package',
+        message: err.message,
+      });
     },
   });
 
+  const resetForm = () => {
+    setPackageName('');
+    setSelectedDocIds([]);
+    setTableOfContents('');
+  };
+
+  const toggleDoc = (docId: string) => {
+    setSelectedDocIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId],
+    );
+  };
+
+  const selectAll = () => {
+    if (selectedDocIds.length === availableDocuments.length) {
+      setSelectedDocIds([]);
+    } else {
+      setSelectedDocIds(availableDocuments.map((d) => d.id));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!titleEmail.trim()) {
-      addToast({ type: 'warning', title: 'Please enter a title company email' });
+    if (!packageName.trim()) {
+      addToast({ type: 'warning', title: 'Please enter a package name' });
       return;
     }
-    submitMutation.mutate({
-      titleCompanyEmail: titleEmail.trim(),
-      message: message.trim(),
+    if (selectedDocIds.length === 0) {
+      addToast({ type: 'warning', title: 'Please select at least one document' });
+      return;
+    }
+    createMutation.mutate({
+      name: packageName.trim(),
+      transactionId,
+      documentIds: selectedDocIds,
+      tableOfContents: tableOfContents.trim() || null,
     });
   };
 
@@ -408,10 +557,17 @@ function SubmitToTitleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
-      <div className="relative z-10 w-full max-w-md rounded-xl bg-white shadow-2xl mx-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal */}
+      <div className="relative z-10 mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-bold text-gray-900">Submit to Title Company</h2>
+          <h2 className="text-lg font-bold text-gray-900">Create Closing Package</h2>
           <button
             type="button"
             onClick={onClose}
@@ -420,36 +576,99 @@ function SubmitToTitleModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+
+        <form onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
+          {/* Package Name */}
           <div>
-            <label htmlFor="title-email" className="block text-sm font-medium text-gray-700">
-              Title Company Email *
+            <label
+              htmlFor="package-name"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Package Name *
             </label>
-            <div className="mt-1 flex items-center gap-2">
-              <Mail className="h-4 w-4 text-gray-400" />
-              <input
-                id="title-email"
-                type="email"
-                value={titleEmail}
-                onChange={(e) => setTitleEmail(e.target.value)}
-                placeholder="closing@titlecompany.com"
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#2A9D8F] focus:outline-none focus:ring-1 focus:ring-[#2A9D8F]"
-              />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="submission-message" className="block text-sm font-medium text-gray-700">
-              Message (optional)
-            </label>
-            <textarea
-              id="submission-message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Any additional notes for the title company..."
-              rows={3}
+            <input
+              id="package-name"
+              type="text"
+              value={packageName}
+              onChange={(e) => setPackageName(e.target.value)}
+              placeholder="e.g., 123 Main St - Closing Package"
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#2A9D8F] focus:outline-none focus:ring-1 focus:ring-[#2A9D8F]"
             />
           </div>
+
+          {/* Document Selector */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                Select Documents *
+              </label>
+              {availableDocuments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="text-xs font-medium text-[#2A9D8F] hover:underline"
+                >
+                  {selectedDocIds.length === availableDocuments.length
+                    ? 'Deselect All'
+                    : 'Select All'}
+                </button>
+              )}
+            </div>
+            <div className="mt-2 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-200 p-2">
+              {availableDocuments.length > 0 ? (
+                availableDocuments.map((doc) => (
+                  <label
+                    key={doc.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedDocIds.includes(doc.id)}
+                      onChange={() => toggleDoc(doc.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-[#2A9D8F] focus:ring-[#2A9D8F]"
+                    />
+                    <FileText className="h-3.5 w-3.5 text-gray-400" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                      {doc.name}
+                    </span>
+                    <span className="text-xs text-gray-400">{doc.type}</span>
+                    <span className="text-xs text-gray-400">{doc.pageCount} pg</span>
+                    {doc.isSigned && (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    )}
+                  </label>
+                ))
+              ) : (
+                <p className="px-2 py-6 text-center text-sm text-gray-400">
+                  No documents available. Upload documents to this transaction first.
+                </p>
+              )}
+            </div>
+            {selectedDocIds.length > 0 && (
+              <p className="mt-1 text-xs text-gray-500">
+                {selectedDocIds.length} document
+                {selectedDocIds.length !== 1 ? 's' : ''} selected
+              </p>
+            )}
+          </div>
+
+          {/* Table of Contents */}
+          <div>
+            <label htmlFor="toc" className="block text-sm font-medium text-gray-700">
+              Table of Contents{' '}
+              <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <textarea
+              id="toc"
+              rows={4}
+              value={tableOfContents}
+              onChange={(e) => setTableOfContents(e.target.value)}
+              placeholder="Enter an optional table of contents for this package..."
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#2A9D8F] focus:outline-none focus:ring-1 focus:ring-[#2A9D8F]"
+            />
+          </div>
+
+          {/* Actions */}
           <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
             <button
               type="button"
@@ -460,342 +679,18 @@ function SubmitToTitleModal({
             </button>
             <button
               type="submit"
-              disabled={submitMutation.isPending}
+              disabled={createMutation.isPending}
               className="inline-flex items-center gap-2 rounded-lg bg-[#2A9D8F] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#238b7e] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              <Send className="h-4 w-4" />
-              Submit Package
+              {createMutation.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              Create Package
             </button>
           </div>
         </form>
       </div>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Package Detail View
-// ---------------------------------------------------------------------------
-
-function PackageDetailView({
-  pkg,
-  transactionId,
-}: {
-  pkg: ClosingPackage;
-  transactionId: string;
-}) {
-  const queryClient = useQueryClient();
-  const [localDocs, setLocalDocs] = useState<ClosingDocument[]>(pkg.documentOrder);
-  const [submitModalOpen, setSubmitModalOpen] = useState(false);
-
-  const includedDocs = useMemo(
-    () => localDocs.filter((d) => d.included).sort((a, b) => a.order - b.order),
-    [localDocs],
-  );
-
-  const toggleInclude = useCallback((docId: string) => {
-    setLocalDocs((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, included: !d.included } : d)),
-    );
-  }, []);
-
-  const moveUp = useCallback((docId: string) => {
-    setLocalDocs((prev) => {
-      const included = prev.filter((d) => d.included).sort((a, b) => a.order - b.order);
-      const idx = included.findIndex((d) => d.id === docId);
-      if (idx <= 0) return prev;
-      const swapId = included[idx - 1].id;
-      return prev.map((d) => {
-        if (d.id === docId) return { ...d, order: d.order - 1 };
-        if (d.id === swapId) return { ...d, order: d.order + 1 };
-        return d;
-      });
-    });
-  }, []);
-
-  const moveDown = useCallback((docId: string) => {
-    setLocalDocs((prev) => {
-      const included = prev.filter((d) => d.included).sort((a, b) => a.order - b.order);
-      const idx = included.findIndex((d) => d.id === docId);
-      if (idx < 0 || idx >= included.length - 1) return prev;
-      const swapId = included[idx + 1].id;
-      return prev.map((d) => {
-        if (d.id === docId) return { ...d, order: d.order + 1 };
-        if (d.id === swapId) return { ...d, order: d.order - 1 };
-        return d;
-      });
-    });
-  }, []);
-
-  const saveMutation = useMutation({
-    mutationFn: (documents: ClosingDocument[]) =>
-      api(`/transactions/${transactionId}/closing/${pkg.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          documentOrder: documents.map((d) => ({
-            id: d.id,
-            included: d.included,
-            order: d.order,
-          })),
-        }),
-      }),
-    onSuccess: () => {
-      addToast({ type: 'success', title: 'Package updated' });
-      queryClient.invalidateQueries({ queryKey: ['closing-packages', transactionId] });
-    },
-    onError: (err: Error) => {
-      addToast({ type: 'error', title: 'Save failed', message: err.message });
-    },
-  });
-
-  const requestApprovalMutation = useMutation({
-    mutationFn: () =>
-      api(`/transactions/${transactionId}/closing/${pkg.id}/request-approval`, {
-        method: 'POST',
-      }),
-    onSuccess: () => {
-      addToast({ type: 'success', title: 'Approval requested' });
-      queryClient.invalidateQueries({ queryKey: ['closing-packages', transactionId] });
-    },
-    onError: (err: Error) => {
-      addToast({ type: 'error', title: 'Failed to request approval', message: err.message });
-    },
-  });
-
-  const handleDownloadPdf = () => {
-    window.open(
-      `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/transactions/${transactionId}/closing/${pkg.id}/download?format=pdf`,
-      '_blank',
-    );
-  };
-
-  const handleDownloadZip = () => {
-    window.open(
-      `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/transactions/${transactionId}/closing/${pkg.id}/download?format=zip`,
-      '_blank',
-    );
-  };
-
-  const statusConfig = PACKAGE_STATUS_CONFIG[pkg.status] ?? PACKAGE_STATUS_CONFIG.draft;
-
-  return (
-    <div className="space-y-4">
-      {/* Package Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Package className="h-5 w-5 text-[#1B3A5C]" />
-          <h3 className="text-lg font-bold text-gray-900">{pkg.packageName}</h3>
-          <span
-            className={cn(
-              'inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
-              statusConfig.bg,
-              statusConfig.text,
-            )}
-          >
-            {statusConfig.label}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
-          <Clock className="h-3.5 w-3.5" />
-          Updated: {formatDateTime(pkg.updatedAt)}
-        </div>
-      </div>
-
-      {/* Ready for Closing Indicator */}
-      <div
-        className={cn(
-          'flex items-center gap-2 rounded-lg border px-4 py-3',
-          pkg.readyForClosing
-            ? 'border-green-200 bg-green-50'
-            : 'border-amber-200 bg-amber-50',
-        )}
-      >
-        {pkg.readyForClosing ? (
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
-        ) : (
-          <AlertCircle className="h-5 w-5 text-amber-600" />
-        )}
-        <span
-          className={cn(
-            'text-sm font-medium',
-            pkg.readyForClosing ? 'text-green-800' : 'text-amber-800',
-          )}
-        >
-          {pkg.readyForClosing
-            ? 'Ready for Closing -- All documents assembled and compliance checks passed'
-            : 'Not Ready for Closing -- Review outstanding items below'}
-        </span>
-      </div>
-
-      {/* Document List */}
-      <div className="rounded-lg border border-gray-200 bg-white">
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-[#1B3A5C]" />
-            <h4 className="text-sm font-semibold text-gray-900">Documents</h4>
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-              {includedDocs.length} included
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => saveMutation.mutate(localDocs)}
-            disabled={saveMutation.isPending}
-            className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-3 w-3" />
-            )}
-            Save Order
-          </button>
-        </div>
-        <div>
-          {localDocs
-            .sort((a, b) => {
-              // Included first, then by order
-              if (a.included && !b.included) return -1;
-              if (!a.included && b.included) return 1;
-              return a.order - b.order;
-            })
-            .map((doc, idx, arr) => {
-              const includedArr = arr.filter((d) => d.included);
-              const includedIdx = includedArr.findIndex((d) => d.id === doc.id);
-              return (
-                <DocumentRow
-                  key={doc.id}
-                  doc={doc}
-                  onToggleInclude={toggleInclude}
-                  onMoveUp={moveUp}
-                  onMoveDown={moveDown}
-                  isFirst={includedIdx === 0}
-                  isLast={includedIdx === includedArr.length - 1}
-                />
-              );
-            })}
-          {localDocs.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">
-              No documents in this package
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Table of Contents */}
-      <TableOfContentsPreview content={pkg.tableOfContents} />
-
-      {/* Compliance Summary */}
-      <ComplianceSummary items={pkg.complianceItems} />
-
-      {/* Approval Status */}
-      <ApprovalSection approval={pkg.approval} />
-
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-white p-4">
-        <button
-          type="button"
-          onClick={handleDownloadPdf}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-        >
-          <Download className="h-4 w-4" />
-          Download PDF
-        </button>
-        <button
-          type="button"
-          onClick={handleDownloadZip}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-        >
-          <Archive className="h-4 w-4" />
-          Download ZIP
-        </button>
-        <button
-          type="button"
-          onClick={() => setSubmitModalOpen(true)}
-          disabled={!pkg.readyForClosing}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1B3A5C] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#2a4d73] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Send className="h-4 w-4" />
-          Submit to Title Company
-        </button>
-        <button
-          type="button"
-          onClick={() => requestApprovalMutation.mutate()}
-          disabled={requestApprovalMutation.isPending || pkg.approval.status === 'approved'}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[#2A9D8F] bg-white px-4 py-2 text-sm font-medium text-[#2A9D8F] shadow-sm hover:bg-[#2A9D8F]/5 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {requestApprovalMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ThumbsUp className="h-4 w-4" />
-          )}
-          Request Approval
-        </button>
-      </div>
-
-      {/* Submit to Title Modal */}
-      <SubmitToTitleModal
-        open={submitModalOpen}
-        onClose={() => setSubmitModalOpen(false)}
-        packageId={pkg.id}
-        transactionId={transactionId}
-      />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Package List Item
-// ---------------------------------------------------------------------------
-
-function PackageListItem({
-  pkg,
-  isActive,
-  onClick,
-}: {
-  pkg: ClosingPackage;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  const statusConfig = PACKAGE_STATUS_CONFIG[pkg.status] ?? PACKAGE_STATUS_CONFIG.draft;
-  const docCount = pkg.documentOrder.filter((d) => d.included).length;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors',
-        isActive
-          ? 'border-[#2A9D8F] bg-[#2A9D8F]/5'
-          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50',
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <Package className="h-5 w-5 text-[#1B3A5C]" />
-        <div>
-          <p className="text-sm font-semibold text-gray-900">{pkg.packageName}</p>
-          <p className="mt-0.5 text-xs text-gray-500">
-            {docCount} doc{docCount !== 1 ? 's' : ''} -- {formatDate(pkg.createdAt)}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {pkg.readyForClosing && (
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
-        )}
-        <span
-          className={cn(
-            'inline-flex rounded-full px-2 py-0.5 text-xs font-semibold',
-            statusConfig.bg,
-            statusConfig.text,
-          )}
-        >
-          {statusConfig.label}
-        </span>
-      </div>
-    </button>
   );
 }
 
@@ -808,50 +703,145 @@ export default function ClosingPackagePage() {
   const params = useParams();
   const transactionId = params.id as string;
   const queryClient = useQueryClient();
-  const [activePackageId, setActivePackageId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<ClosingPackage | null>(null);
 
-  const { data: closingData, isLoading } = useQuery({
+  // ---- Data Fetching ----
+
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['closing-packages', transactionId],
     queryFn: () =>
-      api<ClosingPageData>(`/transactions/${transactionId}/closing`),
+      api<ClosingPackagesResponse>(
+        `/closing-packages?transactionId=${transactionId}`,
+      ),
     enabled: Boolean(transactionId),
   });
 
-  const createMutation = useMutation({
-    mutationFn: () =>
-      api<ClosingPackage>(`/transactions/${transactionId}/closing`, {
+  // ---- Mutations ----
+
+  const assembleMutation = useMutation({
+    mutationFn: (packageId: string) =>
+      api(`/closing-packages/${packageId}/assemble`, {
         method: 'POST',
-        body: JSON.stringify({
-          packageName: `Closing Package - ${formatDate(new Date().toISOString())}`,
-        }),
       }),
-    onSuccess: (data: ClosingPackage) => {
-      addToast({ type: 'success', title: 'Closing package created' });
-      queryClient.invalidateQueries({ queryKey: ['closing-packages', transactionId] });
-      setActivePackageId(data.id);
+    onSuccess: () => {
+      addToast({ type: 'success', title: 'Package assembly started' });
+      queryClient.invalidateQueries({
+        queryKey: ['closing-packages', transactionId],
+      });
     },
     onError: (err: Error) => {
-      addToast({ type: 'error', title: 'Failed to create package', message: err.message });
+      addToast({
+        type: 'error',
+        title: 'Failed to assemble package',
+        message: err.message,
+      });
     },
   });
 
-  const activePackage = closingData?.packages.find((p) => p.id === activePackageId) ?? null;
+  const submitToTitleMutation = useMutation({
+    mutationFn: (packageId: string) =>
+      api(`/closing-packages/${packageId}/submit-to-title`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      addToast({ type: 'success', title: 'Package submitted to title company' });
+      queryClient.invalidateQueries({
+        queryKey: ['closing-packages', transactionId],
+      });
+      setSelectedPackage(null);
+    },
+    onError: (err: Error) => {
+      addToast({
+        type: 'error',
+        title: 'Failed to submit to title',
+        message: err.message,
+      });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (packageId: string) =>
+      api(`/closing-packages/${packageId}/approve`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      addToast({ type: 'success', title: 'Package approved successfully' });
+      queryClient.invalidateQueries({
+        queryKey: ['closing-packages', transactionId],
+      });
+      setSelectedPackage(null);
+    },
+    onError: (err: Error) => {
+      addToast({
+        type: 'error',
+        title: 'Failed to approve package',
+        message: err.message,
+      });
+    },
+  });
+
+  // ---- Computed Stats ----
+
+  const packages = data?.packages ?? [];
+  const availableDocuments = data?.availableDocuments ?? [];
+
+  const statusCounts = useMemo(() => {
+    return {
+      total: packages.length,
+      readyForClosing: packages.filter(
+        (p) => p.status === 'ready_for_review' || p.status === 'approved',
+      ).length,
+      submittedToTitle: packages.filter(
+        (p) => p.status === 'submitted_to_title',
+      ).length,
+      finalApproved: packages.filter(
+        (p) => p.status === 'approved' || p.status === 'recorded',
+      ).length,
+    };
+  }, [packages]);
+
+  // ---- Handlers ----
+
+  const handleAssemble = (packageId: string) => {
+    assembleMutation.mutate(packageId);
+  };
+
+  const handleSubmitToTitle = (packageId: string) => {
+    submitToTitleMutation.mutate(packageId);
+  };
+
+  const handleApprove = (packageId: string) => {
+    approveMutation.mutate(packageId);
+  };
+
+  const handleSelectPackage = (pkg: ClosingPackage) => {
+    setSelectedPackage(selectedPackage?.id === pkg.id ? null : pkg);
+  };
+
+  // ---- Loading State ----
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-[#1B3A5C]" />
-        <span className="ml-2 text-sm text-gray-500">Loading closing packages...</span>
+        <span className="ml-2 text-sm text-gray-500">
+          Loading closing packages...
+        </span>
       </div>
     );
   }
 
-  if (!closingData) {
+  // ---- Error State ----
+
+  if (isError || !data) {
     return (
       <div className="space-y-4">
         <button
           type="button"
-          onClick={() => router.push(`/dashboard/transactions/${transactionId}`)}
+          onClick={() =>
+            router.push(`/dashboard/transactions/${transactionId}`)
+          }
           className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -859,13 +849,20 @@ export default function ClosingPackagePage() {
         </button>
         <div className="flex flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50 py-12">
           <AlertCircle className="mb-2 h-8 w-8 text-red-400" />
-          <p className="text-sm text-red-600">Failed to load closing data.</p>
+          <p className="text-sm font-medium text-red-600">
+            Failed to load closing packages
+          </p>
+          <p className="mt-1 text-xs text-red-400">
+            There was an error retrieving data. Please try again.
+          </p>
           <button
             type="button"
             onClick={() =>
-              queryClient.invalidateQueries({ queryKey: ['closing-packages', transactionId] })
+              queryClient.invalidateQueries({
+                queryKey: ['closing-packages', transactionId],
+              })
             }
-            className="mt-3 rounded-lg bg-[#1B3A5C] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a4d73]"
+            className="mt-4 rounded-lg bg-[#1B3A5C] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a4d73]"
           >
             Retry
           </button>
@@ -874,6 +871,8 @@ export default function ClosingPackagePage() {
     );
   }
 
+  // ---- Main Render ----
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -881,13 +880,17 @@ export default function ClosingPackagePage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => router.push(`/dashboard/transactions/${transactionId}`)}
+            onClick={() =>
+              router.push(`/dashboard/transactions/${transactionId}`)
+            }
             className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Closing Packages</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Closing Package
+            </h1>
             <p className="mt-0.5 text-sm text-gray-500">
               Assemble and manage closing document packages
             </p>
@@ -895,70 +898,117 @@ export default function ClosingPackagePage() {
         </div>
         <button
           type="button"
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#2A9D8F] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#238b7e] disabled:opacity-50"
+          onClick={() => setModalOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#2A9D8F] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#238b7e]"
         >
-          {createMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
-          New Closing Package
+          <Plus className="h-4 w-4" />
+          Create Package
         </button>
       </div>
 
-      {/* Layout: Package List + Detail */}
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Package List */}
-        <div className="w-full space-y-2 lg:w-80 lg:flex-shrink-0">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Packages ({closingData.packages.length})
-          </h2>
-          {closingData.packages.length > 0 ? (
-            closingData.packages.map((pkg) => (
-              <PackageListItem
+      {/* Status Summary Cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label="Total Packages"
+          count={statusCounts.total}
+          icon={Package}
+          bgColor="bg-slate-50"
+          borderColor="border-slate-200"
+          textColor="text-[#1B3A5C]"
+          iconColor="text-[#1B3A5C]"
+        />
+        <StatCard
+          label="Ready for Closing"
+          count={statusCounts.readyForClosing}
+          icon={FileCheck}
+          bgColor="bg-amber-50"
+          borderColor="border-amber-200"
+          textColor="text-amber-700"
+          iconColor="text-amber-500"
+        />
+        <StatCard
+          label="Submitted to Title"
+          count={statusCounts.submittedToTitle}
+          icon={Send}
+          bgColor="bg-purple-50"
+          borderColor="border-purple-200"
+          textColor="text-purple-700"
+          iconColor="text-purple-500"
+        />
+        <StatCard
+          label="Final Approved"
+          count={statusCounts.finalApproved}
+          icon={CheckCircle2}
+          bgColor="bg-green-50"
+          borderColor="border-green-200"
+          textColor="text-green-700"
+          iconColor="text-green-500"
+        />
+      </div>
+
+      {/* Package List */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+          Packages ({packages.length})
+        </h2>
+        {packages.length > 0 ? (
+          <div className="space-y-3">
+            {packages.map((pkg) => (
+              <PackageCard
                 key={pkg.id}
                 pkg={pkg}
-                isActive={pkg.id === activePackageId}
-                onClick={() => setActivePackageId(pkg.id)}
+                onSelect={handleSelectPackage}
+                onAssemble={handleAssemble}
+                onSubmitToTitle={handleSubmitToTitle}
+                onApprove={handleApprove}
+                isSubmitting={submitToTitleMutation.isPending}
+                isApproving={approveMutation.isPending}
               />
-            ))
-          ) : (
-            <div className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center">
-              <Package className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-              <p className="text-sm text-gray-500">No closing packages yet</p>
-              <button
-                type="button"
-                onClick={() => createMutation.mutate()}
-                className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[#2A9D8F] hover:underline"
-              >
-                <Plus className="h-4 w-4" />
-                Create your first package
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Package Detail */}
-        <div className="flex-1">
-          {activePackage ? (
-            <PackageDetailView
-              pkg={activePackage}
-              transactionId={transactionId}
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-16">
-              <Package className="mb-3 h-10 w-10 text-gray-300" />
-              <p className="text-sm text-gray-500">
-                {closingData.packages.length > 0
-                  ? 'Select a package to view details'
-                  : 'Create a closing package to get started'}
-              </p>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border-2 border-dashed border-gray-200 py-12 text-center">
+            <Package className="mx-auto mb-2 h-8 w-8 text-gray-300" />
+            <p className="text-sm text-gray-500">No closing packages yet</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Create a package to assemble your closing documents
+            </p>
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#2A9D8F] hover:underline"
+            >
+              <Plus className="h-4 w-4" />
+              Create your first package
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Selected Package Detail Panel */}
+      {selectedPackage && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500">
+            Package Details
+          </h2>
+          <PackageDetailPanel
+            pkg={selectedPackage}
+            onClose={() => setSelectedPackage(null)}
+            onSubmitToTitle={handleSubmitToTitle}
+            onApprove={handleApprove}
+            isSubmitting={submitToTitleMutation.isPending}
+            isApproving={approveMutation.isPending}
+          />
+        </div>
+      )}
+
+      {/* Create Package Modal */}
+      <CreatePackageModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        availableDocuments={availableDocuments}
+        transactionId={transactionId}
+      />
     </div>
   );
 }

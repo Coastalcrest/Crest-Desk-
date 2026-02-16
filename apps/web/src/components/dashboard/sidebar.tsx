@@ -14,6 +14,7 @@ import {
   Share2,
   UserCheck,
   Shield,
+  ClipboardCheck,
   BarChart3,
   Settings,
   ChevronLeft,
@@ -70,6 +71,12 @@ const NAV_ITEMS: NavItem[] = [
     href: '/dashboard/compliance',
     icon: Shield,
     minRole: 'principal_broker',
+  },
+  {
+    label: 'Review Queue',
+    href: '/dashboard/review',
+    icon: ClipboardCheck,
+    minRole: 'managing_broker',
   },
   {
     label: 'Analytics',

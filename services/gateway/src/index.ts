@@ -24,6 +24,8 @@ import checklistsRoutes from './routes/checklists';
 import signingRoutes from './routes/signing';
 import signPublicRoutes from './routes/sign-public';
 import closingPackagesRoutes from './routes/closing-packages';
+import reviewQueueRoutes from './routes/review-queue';
+import aiReviewRoutes from './routes/ai-review';
 
 const app = express();
 
@@ -72,6 +74,8 @@ app.use('/api/v1/compliance-checklists', checklistsRoutes);
 app.use('/api/v1/signing', signingRoutes);
 app.use('/api/v1/sign', signPublicRoutes);
 app.use('/api/v1/closing-packages', closingPackagesRoutes);
+app.use('/api/v1/review-queue', reviewQueueRoutes);
+app.use('/api/v1/ai-review', aiReviewRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

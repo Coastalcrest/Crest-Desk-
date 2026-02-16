@@ -21,3 +21,7 @@ export { certificatesOfCompletion } from './certificates-of-completion';
 export { signingAuditLog } from './signing-audit-log';
 export { closingPackages } from './closing-packages';
 export { stateSigningRules } from './state-signing-rules';
+export { reviewQueue } from './review-queue';
+export { reviewFindings } from './review-findings';
+export { aiReviewFeedback } from './ai-review-feedback';
+export { agentCoachingInsights } from './agent-coaching-insights';

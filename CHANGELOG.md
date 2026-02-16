@@ -7,6 +7,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-02-15
+
+### Added — Phase 4: Broker Review & AI Audit
+
+#### Database Schema (4 New Tables)
+- Review queue table for prioritized broker review workflow with risk/readiness scores
+- Review findings table for AI-detected and broker-identified issues with severity levels
+- AI review feedback table for broker corrections that train the AI learning engine
+- Agent coaching insights table for AI-detected per-agent patterns and reminders
+- Row-Level Security policies for all Phase 4 tables
+- Updated_at triggers for automatic timestamp management
+
+#### Review Queue Management (Gateway API)
+- Prioritized review queue with risk score and readiness score ranking
+- Submit transactions for broker review with auto-priority calculation
+- Start/complete review workflow with reviewer assignment
+- Dashboard stats endpoint (pending, in_review, approved, returned, escalated counts)
+- Return-to-agent flow with specific fix requests and reason tracking
+- Escalation to principal broker for complex issues
+- File approval with digital stamp (Principal Broker+ role required)
+- Approved file export as PDF with audit trail
+- Pagination, filtering by status, sorting by priority/closing date/readiness score
+
+#### AI Pre-Review Engine (Gateway API)
+- Automated pre-review scanning across 5 categories:
+  - Completeness: checks all required document types are present
+  - Signatures: verifies all signing envelopes are fully signed
+  - Dates: validates closing dates and document expiry
+  - Names: cross-checks buyer/seller consistency across documents
+  - Compliance: validates checklist completion status
+- Severity classification: Critical (must fix), Warning (should review), Info (suggestion)
+- Readiness score calculation (0-100) based on finding severity weights
+- Rule references with jurisdiction (e.g., ORS 93.275, RESPA Section 8)
+- Per-document finding linkage for precise issue location
+
+#### AI Learning Engine (Gateway API)
+- Broker feedback on AI findings (correct, false_positive, missed_issue, severity_adjustment)
+- Feedback loop that adjusts AI confidence over time
+- Promote common broker flags to permanent brokerage rules
+- Per-finding action tracking (approved, flagged, dismissed, promoted_to_rule)
+
+#### Agent Coaching Insights (Gateway API)
+- AI-detected recurring patterns per agent across review history
+- Insight types: recurring_issue, improvement, coaching_tip, pattern_detected
+- Occurrence counting with example transaction references
+- Coaching reminder dispatch tracking
+- Generate insights from historical review data
+
+#### Review Findings Management (Gateway API)
+- Add manual broker findings during file review
+- Take action on findings (approve, flag, dismiss, promote to rule)
+- Auto-create AI feedback records when dismissing AI findings
+- Finding resolution tracking with user attribution
+- Broker notes per finding
+
+#### Frontend — Broker Review Queue Dashboard
+- Stat cards: Pending, In Review, Approved This Week, Returned counts
+- Filter tabs: All, Pending, In Review, Returned, Escalated
+- Sort controls: Priority, Closing Date, Readiness Score
+- Review queue cards with priority indicators (color-coded dots)
+- Readiness score circular progress indicators (red/yellow/green)
+- Finding severity badges (critical/warning/info counts)
+- Start Review and View quick actions
+- Empty state with illustration
+
+#### Frontend — Transaction Review Detail
+- Readiness score hero display (large circular 0-100 indicator)
+- AI Pre-Review summary card with finding counts and re-scan button
+- Findings list grouped by severity (Critical → Warning → Info)
+- Per-finding action buttons: Approve, Flag, Dismiss, Promote to Rule
+- Source badges (AI Pre-Review, Broker Manual, Compliance Engine)
+- Document reference and rule/jurisdiction display per finding
+- Add Manual Finding form with category, severity, title, description
+- Document checklist with signed/compliance status per document
+- Sticky action bar: Approve File, Return to Agent, Escalate, Export
+- Return-to-agent modal with reason input and agent selector
+
+#### Frontend — Agent Coaching Insights
+- Agent selector dropdown for brokerage team
+- Insight cards with type-specific icons (recurring, improvement, tip, pattern)
+- Occurrence count and last-seen date display
+- Example transaction links per insight
+- Send Reminder and Dismiss actions
+- Generate Insights button to analyze agent history
+- Summary stats: total insights, recurring issues, improvements
+
+#### Frontend — Navigation
+- Added "Review Queue" nav item with ClipboardCheck icon (Managing Broker+ visibility)
+
+#### Infrastructure Updates
+- Gateway schema.ts updated with 4 new Phase 4 table exports (27 total)
+- Gateway index.ts updated with 2 new route groups (review-queue, ai-review)
+- 6 new SQL migrations (0032-0037) with RLS policies and triggers
+
 ## [v0.3.0] - 2026-02-15
 
 ### Added — Phase 3: E-Signatures & Closing

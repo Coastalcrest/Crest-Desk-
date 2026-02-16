@@ -21,3 +21,7 @@ export { certificatesOfCompletion } from '../../../../packages/db/src/schema/cer
 export { signingAuditLog } from '../../../../packages/db/src/schema/signing-audit-log';
 export { closingPackages } from '../../../../packages/db/src/schema/closing-packages';
 export { stateSigningRules } from '../../../../packages/db/src/schema/state-signing-rules';
+export { reviewQueue } from '../../../../packages/db/src/schema/review-queue';
+export { reviewFindings } from '../../../../packages/db/src/schema/review-findings';
+export { aiReviewFeedback } from '../../../../packages/db/src/schema/ai-review-feedback';
+export { agentCoachingInsights } from '../../../../packages/db/src/schema/agent-coaching-insights';
