@@ -1,9 +1,11 @@
 import { pgTable, uuid, text, timestamp, varchar, jsonb, boolean } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
+import { users } from './users';
 
 export const emailAccounts = pgTable('email_accounts', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
-  agentId: uuid('agent_id').notNull(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
+  agentId: uuid('agent_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   provider: varchar('provider', { length: 30 }).notNull(),
   emailAddress: varchar('email_address', { length: 255 }).notNull(),
   displayName: varchar('display_name', { length: 200 }),

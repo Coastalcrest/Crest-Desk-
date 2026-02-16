@@ -1,93 +1,193 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { FileText, Plus, Search, Edit3, Trash2, Copy, Eye, Clock, Users, ArrowLeft } from "lucide-react";
+import { useState } from 'react';
+import {
+  Search, Plus, Copy, Eye, Edit2, Trash2,
+  FileText, Mail, Users, Megaphone, Tag,
+  Clock, MoreHorizontal, Star, Share2,
+} from 'lucide-react';
 
 interface EmailTemplate {
-  id: string; name: string; subject: string; category: string; isShared: boolean; usageCount: number; lastUsedAt: string; preview: string;
+  id: number;
+  name: string;
+  subject: string;
+  category: 'Marketing' | 'Transaction' | 'Follow-Up' | 'Newsletter';
+  body: string;
+  isShared: boolean;
+  usageCount: number;
+  lastUsed: string;
+  createdAt: string;
 }
 
+const mockTemplates: EmailTemplate[] = [
+  {
+    id: 1,
+    name: 'New Listing Announcement',
+    subject: 'Just Listed: {{property_address}} - {{bedrooms}}BR/{{bathrooms}}BA in {{neighborhood}}',
+    category: 'Marketing',
+    body: 'Exciting new listing alert\! This beautiful {{bedrooms}}-bedroom, {{bathrooms}}-bathroom home at {{property_address}} is now on the market for {{price}}.',
+    isShared: true,
+    usageCount: 47,
+    lastUsed: 'Feb 15, 2026',
+    createdAt: 'Jan 3, 2026',
+  },
+  {
+    id: 2,
+    name: 'Open House Invitation',
+    subject: 'You Are Invited: Open House at {{property_address}} - {{date}}',
+    category: 'Marketing',
+    body: 'Join us for an open house at {{property_address}} on {{date}} from {{start_time}} to {{end_time}}. Light refreshments will be served.',
+    isShared: true,
+    usageCount: 32,
+    lastUsed: 'Feb 12, 2026',
+    createdAt: 'Jan 10, 2026',
+  },
+  {
+    id: 3,
+    name: 'Offer Received Notification',
+    subject: 'Offer Received on {{property_address}} - Action Required',
+    category: 'Transaction',
+    body: 'Great news\! We have received an offer on your property at {{property_address}}. The offer is for {{offer_amount}} with a {{closing_timeline}} closing timeline.',
+    isShared: false,
+    usageCount: 18,
+    lastUsed: 'Feb 14, 2026',
+    createdAt: 'Dec 15, 2025',
+  },
+  {
+    id: 4,
+    name: 'Closing Congratulations',
+    subject: 'Congratulations on Your New Home at {{property_address}}\!',
+    category: 'Transaction',
+    body: 'Congratulations, {{client_name}}\! The closing on {{property_address}} is complete. Welcome to your new home\!',
+    isShared: true,
+    usageCount: 24,
+    lastUsed: 'Feb 10, 2026',
+    createdAt: 'Nov 20, 2025',
+  },
+  {
+    id: 5,
+    name: 'Post-Showing Follow Up',
+    subject: 'Thank You for Visiting {{property_address}} - Next Steps',
+    category: 'Follow-Up',
+    body: 'Hi {{client_name}}, thank you for taking the time to visit {{property_address}} yesterday. I would love to hear your thoughts on the property.',
+    isShared: false,
+    usageCount: 56,
+    lastUsed: 'Feb 16, 2026',
+    createdAt: 'Oct 5, 2025',
+  },
+  {
+    id: 6,
+    name: 'Monthly Market Update',
+    subject: '{{month}} Real Estate Market Update - {{market_area}}',
+    category: 'Newsletter',
+    body: 'Here is your {{month}} market update for {{market_area}}. Median home prices are {{price_trend}} compared to last month.',
+    isShared: true,
+    usageCount: 12,
+    lastUsed: 'Feb 1, 2026',
+    createdAt: 'Sep 15, 2025',
+  },
+  {
+    id: 7,
+    name: 'Buyer Pre-Approval Reminder',
+    subject: 'Important: Get Pre-Approved Before Your Home Search',
+    category: 'Follow-Up',
+    body: 'Hi {{client_name}}, as we discussed, getting pre-approved for a mortgage is an important first step in your home buying journey.',
+    isShared: false,
+    usageCount: 29,
+    lastUsed: 'Feb 8, 2026',
+    createdAt: 'Nov 1, 2025',
+  },
+  {
+    id: 8,
+    name: 'Listing Anniversary Check-In',
+    subject: 'Checking In: Your Home at {{property_address}}',
+    category: 'Follow-Up',
+    body: 'Hi {{client_name}}, it has been {{days_on_market}} days since we listed your property at {{property_address}}. Here is a summary of our activity.',
+    isShared: true,
+    usageCount: 15,
+    lastUsed: 'Feb 5, 2026',
+    createdAt: 'Dec 1, 2025',
+  },
+];
+
+const categories = ['All', 'Marketing', 'Transaction', 'Follow-Up', 'Newsletter'] as const;
+
+const categoryConfig: Record<string, { color: string; bg: string; icon: typeof Mail }> = {
+  Marketing: { color: 'text-purple-700', bg: 'bg-purple-50', icon: Megaphone },
+  Transaction: { color: 'text-blue-700', bg: 'bg-blue-50', icon: FileText },
+  'Follow-Up': { color: 'text-amber-700', bg: 'bg-amber-50', icon: Clock },
+  Newsletter: { color: 'text-emerald-700', bg: 'bg-emerald-50', icon: Mail },
+};
+
 export default function EmailTemplatesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [templates] = useState(mockTemplates);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
 
-  const [templates] = useState<EmailTemplate[]>([
-    { id: "1", name: "New Listing Announcement", subject: "Just Listed: {{property_address}}", category: "Marketing", isShared: true, usageCount: 47, lastUsedAt: "2 days ago", preview: "Exciting news! A stunning new property has just been listed at {{property_address}}. This beautiful {{bedrooms}}-bedroom home offers..." },
-    { id: "2", name: "Open House Invitation", subject: "You're Invited: Open House at {{property_address}}", category: "Marketing", isShared: true, usageCount: 32, lastUsedAt: "5 days ago", preview: "Join us this {{day}} from {{start_time}} to {{end_time}} for an open house at {{property_address}}..." },
-    { id: "3", name: "Offer Received Notification", subject: "Offer Received on {{property_address}}", category: "Transaction", isShared: false, usageCount: 28, lastUsedAt: "1 week ago", preview: "Great news! We have received an offer on your property at {{property_address}}. Key details to review..." },
-    { id: "4", name: "Closing Congratulations", subject: "Congratulations on Your New Home!", category: "Transaction", isShared: true, usageCount: 19, lastUsedAt: "3 days ago", preview: "Congratulations on the successful closing of {{property_address}}! It has been a wonderful journey..." },
-    { id: "5", name: "Follow-Up After Showing", subject: "Thank You for Visiting {{property_address}}", category: "Follow-Up", isShared: false, usageCount: 53, lastUsedAt: "Yesterday", preview: "Thank you for taking the time to visit {{property_address}}. I hope you enjoyed the tour..." },
-    { id: "6", name: "Market Update Monthly", subject: "{{month}} Real Estate Market Update - {{area}}", category: "Newsletter", isShared: true, usageCount: 12, lastUsedAt: "2 weeks ago", preview: "Here is your monthly real estate market update for {{area}}. Interesting trends this month..." },
-    { id: "7", name: "Price Reduction Alert", subject: "Price Reduced: {{property_address}} Now {{new_price}}", category: "Marketing", isShared: false, usageCount: 15, lastUsedAt: "1 week ago", preview: "Great opportunity! The price for {{property_address}} has been reduced to {{new_price}}..." },
-    { id: "8", name: "Referral Thank You", subject: "Thank You for Your Referral!", category: "Follow-Up", isShared: true, usageCount: 8, lastUsedAt: "3 weeks ago", preview: "I wanted to personally thank you for referring {{referral_name}} to me. Referrals are the highest compliment..." },
-  ]);
-
-  const categories = ["all", "Marketing", "Transaction", "Follow-Up", "Newsletter"];
-  const categoryColor = (cat: string) => {
-    const c: Record<string, string> = { Marketing: "bg-blue-100 text-blue-700", Transaction: "bg-green-100 text-green-700", "Follow-Up": "bg-purple-100 text-purple-700", Newsletter: "bg-amber-100 text-amber-700" };
-    return c[cat] || "bg-gray-100 text-gray-600";
-  };
-
-  const filtered = templates.filter((t) => {
-    if (activeCategory !== "all" && t.category !== activeCategory) return false;
-    if (searchQuery) { const q = searchQuery.toLowerCase(); return t.name.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q); }
-    return true;
+  const filteredTemplates = templates.filter((t) => {
+    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.subject.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = activeCategory === 'All' || t.category === activeCategory;
+    return matchesSearch && matchesCategory;
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <a href="/dashboard/email" className="p-2 rounded-lg hover:bg-gray-200 text-gray-500"><ArrowLeft className="w-5 h-5" /></a>
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>Email Templates</h1>
-              <p className="text-gray-500 text-sm mt-0.5">{templates.length} templates available</p>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto py-6 px-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-primary, #1B3A5C)' }}>Email Templates</h1>
+            <p className="text-sm text-gray-500 mt-1">{templates.length} templates available</p>
           </div>
-          <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90" style={{ backgroundColor: "var(--color-secondary, #2A9D8F)" }}><Plus className="w-4 h-4" /> New Template</button>
+          <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--color-secondary, #2A9D8F)' }}>
+            <Plus className="w-4 h-4" /> New Template
+          </button>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search templates..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            <input type="text" placeholder="Search templates..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2A9D8F]/20 focus:border-[#2A9D8F]" />
           </div>
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 p-1">
             {categories.map((cat) => (
-              <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeCategory === cat ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}>
-                {cat === "all" ? "All" : cat}
-              </button>
+              <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeCategory === cat ? "text-white" : "text-gray-600 hover:bg-gray-50"}`} style={activeCategory === cat ? { backgroundColor: "var(--color-primary, #1B3A5C)" } : undefined}>{cat}</button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((t) => (
-            <div key={t.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-gray-400" /><h3 className="text-sm font-semibold text-gray-900">{t.name}</h3></div>
-                <div className="flex items-center gap-1">
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${categoryColor(t.category)}`}>{t.category}</span>
-                  {t.isShared && <Users className="w-3.5 h-3.5 text-gray-400" title="Shared" />}
+        {/* Template Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredTemplates.map((template) => {
+            const config = categoryConfig[template.category];
+            const CategoryIcon = config?.icon || Mail;
+            return (
+              <div key={template.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${config?.bg} ${config?.color}`}>
+                      <CategoryIcon className="w-3 h-3" />{template.category}
+                    </span>
+                    {template.isShared && <Share2 className="w-3.5 h-3.5 text-gray-400" title="Shared template" />}
+                  </div>
+                  <button className="p-1 rounded hover:bg-gray-100 text-gray-400"><MoreHorizontal className="w-4 h-4" /></button>
+                </div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">{template.name}</h3>
+                <p className="text-xs text-gray-500 mb-3 line-clamp-2">{template.subject}</p>
+                <div className="flex items-center gap-4 text-[10px] text-gray-400 mb-3">
+                  <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{template.usageCount} uses</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{template.lastUsed}</span>
+                </div>
+                <div className="flex items-center gap-1 pt-3 border-t border-gray-100">
+                  <button className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"><Eye className="w-3.5 h-3.5" /> Preview</button>
+                  <button className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"><Copy className="w-3.5 h-3.5" /> Duplicate</button>
+                  <button className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"><Edit2 className="w-3.5 h-3.5" /> Edit</button>
+                  <button className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-red-500 hover:bg-red-50 transition-colors ml-auto"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 font-medium mb-1">Subject: {t.subject}</p>
-              <p className="text-xs text-gray-400 line-clamp-2 mb-3">{t.preview}</p>
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-3 text-[10px] text-gray-400">
-                  <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {t.usageCount} uses</span>
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {t.lastUsedAt}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400"><Eye className="w-3.5 h-3.5" /></button>
-                  <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400"><Copy className="w-3.5 h-3.5" /></button>
-                  <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400"><Edit3 className="w-3.5 h-3.5" /></button>
-                  <button className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

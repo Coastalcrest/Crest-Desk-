@@ -1,8 +1,9 @@
 import { pgTable, uuid, text, timestamp, decimal, varchar, boolean } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
 
 export const vendors = pgTable('vendors', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
   vendorName: varchar('vendor_name', { length: 200 }).notNull(),
   vendorType: varchar('vendor_type', { length: 50 }).notNull(),
   contactName: varchar('contact_name', { length: 200 }),

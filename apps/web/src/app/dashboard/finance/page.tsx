@@ -76,7 +76,6 @@ export default function CommissionDashboardPage() {
     { type: "Commercial", icon: <Building2 className="w-5 h-5" />, percentage: 28, amount: 349398, color: "bg-emerald-500" },
     { type: "Rental", icon: <Key className="w-5 h-5" />, percentage: 10, amount: 124785, color: "bg-amber-500" },
   ];
-test
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 600);

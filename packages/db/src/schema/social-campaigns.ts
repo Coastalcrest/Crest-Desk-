@@ -1,23 +1,21 @@
-import { pgTable, uuid, text, timestamp, varchar, jsonb, integer, boolean, date } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, jsonb, boolean, date, timestamp } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
+import { users } from './users';
 
 export const socialCampaigns = pgTable('social_campaigns', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
-  agentId: uuid('agent_id').notNull(),
-  name: varchar('name', { length: 200 }).notNull(),
+  id: uuid('id').defaultRandom().primaryKey(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
+  createdBy: uuid('created_by').notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   campaignType: varchar('campaign_type', { length: 50 }).notNull(),
-  platforms: jsonb('platforms').notNull(),
-  startDate: date('start_date').notNull(),
+  platforms: jsonb('platforms').default([]),
+  startDate: date('start_date'),
   endDate: date('end_date'),
   status: varchar('status', { length: 30 }).notNull().default('draft'),
-  postCount: integer('post_count').default(0),
-  publishedCount: integer('published_count').default(0),
-  totalImpressions: integer('total_impressions').default(0),
-  totalEngagement: integer('total_engagement').default(0),
   isEvergreen: boolean('is_evergreen').default(false),
-  contentStrategy: jsonb('content_strategy'),
-  metadata: jsonb('metadata'),
+  contentStrategy: jsonb('content_strategy').default({}),
+  metadata: jsonb('metadata').default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),

@@ -20,14 +20,14 @@ CREATE TABLE IF NOT EXISTS media_assets (
   status VARCHAR(30) NOT NULL DEFAULT 'draft',
   compliance_status VARCHAR(30) DEFAULT 'pending',
   compliance_issues JSONB,
-  compliance_checked_at TIMESTAMPTz,
+  compliance_checked_at TIMESTAMPTZ,
   approved_by UUID REFERENCES users(id),
   approved_at TIMESTAMPTZ,
   published_platforms JSONB,
   published_at TIMESTAMPTZ,
   metadata JSONB,
   tags JSONB,
-  created_at TIMESTAMPTT NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ
 );

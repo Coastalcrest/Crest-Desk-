@@ -1,9 +1,11 @@
 import { pgTable, uuid, text, timestamp, varchar, jsonb, boolean, integer } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
+import { users } from './users';
 
 export const emailRules = pgTable('email_rules', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
-  agentId: uuid('agent_id'),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
+  agentId: uuid('agent_id').references(() => users.id, { onDelete: 'restrict' }),
   name: varchar('name', { length: 200 }).notNull(),
   ruleType: varchar('rule_type', { length: 50 }).notNull(),
   conditions: jsonb('conditions').notNull(),

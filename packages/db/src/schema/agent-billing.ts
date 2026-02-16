@@ -1,9 +1,11 @@
 import { pgTable, uuid, text, timestamp, decimal, date, varchar } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
+import { users } from './users';
 
 export const agentBilling = pgTable('agent_billing', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
-  agentId: uuid('agent_id').notNull(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
+  agentId: uuid('agent_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   billingType: varchar('billing_type', { length: 30 }).notNull(),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   billingPeriodStart: date('billing_period_start').notNull(),

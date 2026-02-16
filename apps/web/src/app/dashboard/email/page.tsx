@@ -270,3 +270,39 @@ export default function EmailInboxPage() {
               <div className="mb-6 border-t border-gray-100 pt-6">
                 <div className="whitespace-pre-line text-gray-700 text-sm leading-relaxed">{selectedEmail.body}</div>
               </div>
+              {selectedEmail.attachments.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 mb-6">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase mb-3">Attachments</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedEmail.attachments.map((att, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border">
+                        <Paperclip className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm">{att.name}</span>
+                      </div>))}
+                  </div></div>)}
+              <div className="border-t border-gray-100 pt-4 flex items-center gap-3">
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#1B3A5C] text-white rounded-lg hover:bg-[#15304d] text-sm font-medium">
+                  <Reply className="w-4 h-4" /> Reply
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
+                  <Forward className="w-4 h-4" /> Forward
+                </button>
+                <div className="flex-1" />
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#2A9D8F]/10 text-[#2A9D8F] rounded-lg text-sm font-medium">
+                  <Tag className="w-4 h-4" /> Link to Transaction
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="text-center">
+                <Mail className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">Select an email to preview</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,8 +1,9 @@
 import { pgTable, uuid, text, timestamp, varchar, jsonb, integer, boolean } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
 
 export const assetLibrary = pgTable('asset_library', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id'),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'restrict' }),
   category: varchar('category', { length: 50 }).notNull(),
   subcategory: varchar('subcategory', { length: 50 }),
   name: varchar('name', { length: 300 }).notNull(),

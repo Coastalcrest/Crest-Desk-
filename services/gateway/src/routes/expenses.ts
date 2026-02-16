@@ -25,7 +25,7 @@ router.use(requireAuth);
 // ---------- GET /api/v1/expenses — List expenses ---------- //
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
     const offset = (page - 1) * limit;
@@ -137,7 +137,7 @@ router.get("/", async (req: Request, res: Response) => {
 // ---------- GET /api/v1/expenses/stats — Expense summary ---------- //
 router.get("/stats", async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req.user\!;
+    const { tenantId } = req.user!;
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -758,7 +758,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
 // ---------- POST /api/v1/expenses/:id/mark-paid — Mark expense as paid ---------- //
 router.post("/:id/mark-paid", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const { paymentDate } = req.body;
 
@@ -777,7 +777,7 @@ router.post("/:id/mark-paid", async (req: Request, res: Response) => {
         .returning();
     });
 
-    if (\!expense) {
+    if (!expense) {
       return res.status(404).json({ error: { code: "NOT_FOUND", message: "Expense not found" } });
     }
 

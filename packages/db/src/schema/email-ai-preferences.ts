@@ -1,9 +1,11 @@
 import { pgTable, uuid, timestamp, jsonb, text, varchar } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
+import { users } from './users';
 
 export const emailAiPreferences = pgTable('email_ai_preferences', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
-  agentId: uuid('agent_id').notNull(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
+  agentId: uuid('agent_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   writingStyle: jsonb('writing_style'),
   tonePreferences: jsonb('tone_preferences'),
   signatureHtml: text('signature_html'),

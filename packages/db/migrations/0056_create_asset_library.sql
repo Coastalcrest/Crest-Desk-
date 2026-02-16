@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS asset_library (
   seasonal_month INTEGER,
   sort_order INTEGER DEFAULT 0,
   download_count INTEGER DEFAULT 0,
-  created_at TIMESTAMPTT NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ
 );

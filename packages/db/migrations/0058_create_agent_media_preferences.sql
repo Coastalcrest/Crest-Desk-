@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS agent_media_preferences (
   learned_from_edits JSONB,
   favorite_template_ids JSONB,
   favorite_asset_ids JSONB,
-  created_at TIMESTAMPTT NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

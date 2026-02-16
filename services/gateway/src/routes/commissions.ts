@@ -68,7 +68,7 @@ function calculateCommissionSplits(
 // ---------- GET /api/v1/commissions — List commissions ---------- //
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
     const offset = (page - 1) * limit;
@@ -349,7 +349,7 @@ router.get("/structures", async (req: Request, res: Response) => {
 // ---------- POST /api/v1/commissions/structures — Create commission structure ---------- //
 router.post("/structures", requireRole("managing_broker"), async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const {
       agentId, dealType,
       brokeragePercentage, agentPercentage,
@@ -388,7 +388,7 @@ router.post("/structures", requireRole("managing_broker"), async (req: Request, 
             eq(schema.users.tenantId, tenantId),
             isNull(schema.users.deletedAt),
           ));
-        if (\!agent) return { error: "AGENT_NOT_FOUND" };
+        if (!agent) return { error: "AGENT_NOT_FOUND" };
       }
 
       const [structure] = await tx.insert(schema.commissionStructures).values({
@@ -631,7 +631,7 @@ router.post("/", async (req: Request, res: Response) => {
 // ---------- GET /api/v1/commissions/:id — Get single commission ---------- //
 router.get("/:id", async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req.user\!;
+    const { tenantId } = req.user!;
     const { id } = req.params;
 
     const result = await withTenantContext(tenantId, async (tx) => {
@@ -678,7 +678,7 @@ router.get("/:id", async (req: Request, res: Response) => {
           isNull(schema.commissionSplits.deletedAt),
         ));
 
-      if (\!commission) return null;
+      if (!commission) return null;
 
       // If this is a correction, fetch the original record
       let originalCommission = null;
@@ -716,7 +716,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       return { ...commission, originalCommission, corrections };
     });
 
-    if (\!result) {
+    if (!result) {
       return res.status(404).json({ error: { code: "NOT_FOUND", message: "Commission not found" } });
     }
 
@@ -730,17 +730,17 @@ router.get("/:id", async (req: Request, res: Response) => {
 // ---------- PATCH /api/v1/commissions/:id — Correct a commission ---------- //
 router.patch("/:id", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const { salePrice, commissionRate, correctionReason } = req.body;
 
-    if (\!correctionReason) {
+    if (!correctionReason) {
       return res.status(400).json({
         error: { code: "VALIDATION_ERROR", message: "correctionReason is required for commission corrections" },
       });
     }
 
-    if (\!salePrice && \!commissionRate) {
+    if (!salePrice && !commissionRate) {
       return res.status(400).json({
         error: { code: "VALIDATION_ERROR", message: "At least one of salePrice or commissionRate must be provided" },
       });
@@ -756,7 +756,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
           isNull(schema.commissionSplits.deletedAt),
         ));
 
-      if (\!original) return { error: "NOT_FOUND" };
+      if (!original) return { error: "NOT_FOUND" };
 
       // Mark original as corrected
       await tx.update(schema.commissionSplits)
@@ -779,14 +779,14 @@ router.patch("/:id", async (req: Request, res: Response) => {
       let structure = structures.find(
         (s) => s.agentId === original.agentId && s.dealType === original.dealType,
       ) || null;
-      if (\!structure) {
-        structure = structures.find((s) => s.agentId === original.agentId && \!s.dealType) || null;
+      if (!structure) {
+        structure = structures.find((s) => s.agentId === original.agentId && !s.dealType) || null;
       }
-      if (\!structure) {
-        structure = structures.find((s) => \!s.agentId && s.dealType === original.dealType) || null;
+      if (!structure) {
+        structure = structures.find((s) => !s.agentId && s.dealType === original.dealType) || null;
       }
-      if (\!structure) {
-        structure = structures.find((s) => \!s.agentId && \!s.dealType) || null;
+      if (!structure) {
+        structure = structures.find((s) => !s.agentId && !s.dealType) || null;
       }
 
       const splits = calculateCommissionSplits(newSalePrice, newRate, structure);
@@ -842,11 +842,11 @@ router.patch("/:id", async (req: Request, res: Response) => {
 // ---------- POST /api/v1/commissions/:id/sync-to-qb — Mark synced to QuickBooks ---------- //
 router.post("/:id/sync-to-qb", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const { qbInvoiceId, qbAccountCode } = req.body;
 
-    if (\!qbInvoiceId) {
+    if (!qbInvoiceId) {
       return res.status(400).json({
         error: { code: "VALIDATION_ERROR", message: "qbInvoiceId is required" },
       });
@@ -869,7 +869,7 @@ router.post("/:id/sync-to-qb", async (req: Request, res: Response) => {
         .returning();
     });
 
-    if (\!commission) {
+    if (!commission) {
       return res.status(404).json({ error: { code: "NOT_FOUND", message: "Commission not found" } });
     }
 

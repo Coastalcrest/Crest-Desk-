@@ -1,8 +1,9 @@
 import { pgTable, uuid, text, timestamp, varchar, jsonb, integer, boolean } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
 
 export const mediaTemplates = pgTable('media_templates', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id'),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'restrict' }),
   name: varchar('name', { length: 200 }).notNull(),
   description: text('description'),
   templateType: varchar('template_type', { length: 50 }).notNull(),

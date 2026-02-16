@@ -1,8 +1,9 @@
 import { pgTable, uuid, text, timestamp, varchar, jsonb, boolean, integer } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
 
 export const emails = pgTable('emails', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
   emailAccountId: uuid('email_account_id').notNull(),
   agentId: uuid('agent_id').notNull(),
   transactionId: uuid('transaction_id'),

@@ -16,7 +16,7 @@ const VALID_STATUSES = ['draft', 'scheduled', 'published', 'rejected', 'pending_
 // ---------- GET / --- List social posts ---------- //
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
     const offset = (page - 1) * limit;
@@ -65,7 +65,7 @@ router.get("/", async (req: Request, res: Response) => {
 // ---------- GET /stats --- Post statistics ---------- //
 router.get("/stats", async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req.user\!;
+    const { tenantId } = req.user!;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const stats = await withTenantContext(tenantId, async (tx) => {
@@ -101,7 +101,7 @@ router.get("/stats", async (req: Request, res: Response) => {
 // ---------- GET /calendar --- Calendar view ---------- //
 router.get("/calendar", async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req.user\!;
+    const { tenantId } = req.user!;
     const month = parseInt(req.query.month as string) || (new Date().getMonth() + 1);
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
     const startDate = new Date(year, month - 1, 1).toISOString();
@@ -119,7 +119,7 @@ router.get("/calendar", async (req: Request, res: Response) => {
     for (const post of posts) {
       const dateKey = (post.scheduledAt || post.publishedAt || post.createdAt)
         .toISOString().split("T")[0];
-      if (\!calendar[dateKey]) calendar[dateKey] = [];
+      if (!calendar[dateKey]) calendar[dateKey] = [];
       calendar[dateKey].push(post);
     }
     return res.json({ data: { month, year, calendar } });
@@ -132,15 +132,15 @@ router.get("/calendar", async (req: Request, res: Response) => {
 // ---------- POST / --- Create social post ---------- //
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { socialAccountId, transactionId, postType, platform, content, hashtags, mediaAssetIds, scheduledAt, contentVariations } = req.body;
-    if (\!postType || \!platform || \!content) {
+    if (!postType || !platform || !content) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "postType, platform, and content are required" } });
     }
-    if (\!VALID_PLATFORMS.includes(platform)) {
+    if (!VALID_PLATFORMS.includes(platform)) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid platform: " + platform } });
     }
-    if (\!VALID_POST_TYPES.includes(postType)) {
+    if (!VALID_POST_TYPES.includes(postType)) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Invalid postType: " + postType } });
     }
     const initialStatus = scheduledAt ? "scheduled" : "draft";
@@ -167,29 +167,29 @@ router.post("/", async (req: Request, res: Response) => {
 // ---------- POST /generate --- AI-generate post content ---------- //
 router.post("/generate", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { transactionId, postType, platform, tone } = req.body;
-    if (\!postType || \!platform) {
+    if (!postType || !platform) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "postType and platform are required" } });
     }
     // Simulate AI-generated content
     const toneLabel = tone || "professional";
     const typeLabels: Record<string, string> = {
-      new_listing: "Just listed\! Check out this stunning property.",
-      open_house: "Join us for an open house this weekend\!",
-      under_contract: "Exciting news - this property is now under contract\!",
-      price_reduction: "Price just reduced\! Now is the perfect time to make an offer.",
-      just_sold: "Another successful closing\! Congratulations to the new homeowners.",
-      testimonial: "We love hearing from our happy clients\!",
+      new_listing: "Just listed! Check out this stunning property.",
+      open_house: "Join us for an open house this weekend!",
+      under_contract: "Exciting news - this property is now under contract!",
+      price_reduction: "Price just reduced! Now is the perfect time to make an offer.",
+      just_sold: "Another successful closing! Congratulations to the new homeowners.",
+      testimonial: "We love hearing from our happy clients!",
       market_update: "Here is your latest real estate market update.",
-      evergreen: "Thinking about buying or selling? We are here to help\!",
+      evergreen: "Thinking about buying or selling? We are here to help!",
       custom: "Discover what makes our brokerage different.",
     };
-    const generatedContent = typeLabels[postType] || "Check out our latest real estate update\!";
+    const generatedContent = typeLabels[postType] || "Check out our latest real estate update!";
     const generatedHashtags = ["#realestate", "#" + platform, "#" + postType.replace(/_/g, ""), "#coastalcrest"];
     const captionVariations = [
       generatedContent + " " + generatedHashtags.join(" "),
-      "🏠 " + generatedContent + " Contact us today\!",
+      "🏠 " + generatedContent + " Contact us today!",
       generatedContent + " Call us for more details. " + generatedHashtags.slice(0, 2).join(" "),
     ];
     // Create a draft post with AI-generated content
@@ -215,9 +215,9 @@ router.post("/generate", async (req: Request, res: Response) => {
 // ---------- POST /bulk-schedule --- Bulk generate and schedule posts ---------- //
 router.post("/bulk-schedule", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { startDate, endDate, platforms, postTypes, transactionId } = req.body;
-    if (\!startDate || \!endDate || \!platforms || \!Array.isArray(platforms) || platforms.length === 0) {
+    if (!startDate || !endDate || !platforms || !Array.isArray(platforms) || platforms.length === 0) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "startDate, endDate, and platforms are required" } });
     }
     const types = postTypes && Array.isArray(postTypes) ? postTypes : ["evergreen"];
@@ -259,7 +259,7 @@ router.post("/bulk-schedule", async (req: Request, res: Response) => {
 // ---------- GET /:id --- Get single post detail ---------- //
 router.get("/:id", async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req.user\!;
+    const { tenantId } = req.user!;
     const { id } = req.params;
     const post = await withTenantContext(tenantId, async (tx) => {
       const [row] = await tx.select().from(schema.socialPosts).where(and(
@@ -269,7 +269,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       ));
       return row || null;
     });
-    if (\!post) {
+    if (!post) {
       return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     }
     return res.json({ data: post });
@@ -282,12 +282,12 @@ router.get("/:id", async (req: Request, res: Response) => {
 // ---------- PATCH /:id --- Update post ---------- //
 router.patch("/:id", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const updates: Record<string, unknown> = {};
     const allowedFields = ["content", "scheduledAt", "hashtags", "mediaAssetIds"];
     for (const field of allowedFields) {
-      if (req.body[field] \!== undefined) {
+      if (req.body[field] !== undefined) {
         if (field === "scheduledAt") {
           updates[field] = req.body[field] ? new Date(req.body[field]) : null;
         } else {
@@ -303,7 +303,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
         .where(and(eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)))
         .returning();
     });
-    if (\!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     logAudit({ tenantId, userId, action: "social_post.update", resourceType: "social_post",
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: post });
@@ -316,14 +316,14 @@ router.patch("/:id", async (req: Request, res: Response) => {
 // ---------- DELETE /:id --- Soft delete post ---------- //
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const [post] = await withTenantContext(tenantId, async (tx) => {
       return tx.update(schema.socialPosts).set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)))
         .returning();
     });
-    if (\!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     logAudit({ tenantId, userId, action: "social_post.delete", resourceType: "social_post",
       resourceId: id, details: {}, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
@@ -336,13 +336,13 @@ router.delete("/:id", async (req: Request, res: Response) => {
 // ---------- POST /:id/compliance-check --- Run compliance check ---------- //
 router.post("/:id/compliance-check", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const [existing] = await withTenantContext(tenantId, async (tx) => {
       return tx.select().from(schema.socialPosts).where(and(
         eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
     });
-    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     // Simulate compliance checks
     const issues: Array<{ rule: string; severity: string; description: string; passed: boolean }> = [];
     const contentLower = existing.content.toLowerCase();
@@ -358,7 +358,7 @@ router.post("/:id/compliance-check", async (req: Request, res: Response) => {
     issues.push({ rule: "equal_opportunity", severity: "medium",
       description: "Equal Housing Opportunity statement recommended",
       passed: contentLower.includes("equal") || existing.platform === "twitter" });
-    const failedIssues = issues.filter((i) => \!i.passed);
+    const failedIssues = issues.filter((i) => !i.passed);
     const finalStatus = failedIssues.length > 0 ? "failed" : "passed";
     const [updated] = await withTenantContext(tenantId, async (tx) => {
       return tx.update(schema.socialPosts).set({
@@ -379,13 +379,13 @@ router.post("/:id/compliance-check", async (req: Request, res: Response) => {
 // ---------- POST /:id/approve --- Approve post (managing_broker+) ---------- //
 router.post("/:id/approve", requireRole("managing_broker"), async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const [existing] = await withTenantContext(tenantId, async (tx) => {
       return tx.select().from(schema.socialPosts).where(and(
         eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
     });
-    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     if (existing.status === "published") return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Post is already published" } });
     const newStatus = existing.scheduledAt ? "scheduled" : "published";
     const updateData: Record<string, unknown> = {
@@ -409,17 +409,17 @@ router.post("/:id/approve", requireRole("managing_broker"), async (req: Request,
 // ---------- POST /:id/reject --- Reject post (managing_broker+) ---------- //
 router.post("/:id/reject", requireRole("managing_broker"), async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const { reason } = req.body;
-    if (\!reason || typeof reason \!== "string" || reason.trim().length === 0) {
+    if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "reason is required" } });
     }
     const [existing] = await withTenantContext(tenantId, async (tx) => {
       return tx.select().from(schema.socialPosts).where(and(
         eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
     });
-    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     const [post] = await withTenantContext(tenantId, async (tx) => {
       return tx.update(schema.socialPosts).set({
         status: "rejected", rejectionReason: reason.trim(),
@@ -439,13 +439,13 @@ router.post("/:id/reject", requireRole("managing_broker"), async (req: Request, 
 // ---------- POST /:id/publish --- Publish post immediately ---------- //
 router.post("/:id/publish", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const [existing] = await withTenantContext(tenantId, async (tx) => {
       return tx.select().from(schema.socialPosts).where(and(
         eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)));
     });
-    if (\!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (!existing) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     if (existing.status === "published") return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Post is already published" } });
     if (existing.complianceStatus === "failed") return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "Cannot publish a compliance-failed post" } });
     // Simulate publishing to platform
@@ -470,10 +470,10 @@ router.post("/:id/publish", async (req: Request, res: Response) => {
 // ---------- POST /:id/reschedule --- Reschedule post ---------- //
 router.post("/:id/reschedule", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { id } = req.params;
     const { scheduledAt } = req.body;
-    if (\!scheduledAt) {
+    if (!scheduledAt) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "scheduledAt is required" } });
     }
     const [post] = await withTenantContext(tenantId, async (tx) => {
@@ -482,7 +482,7 @@ router.post("/:id/reschedule", async (req: Request, res: Response) => {
       }).where(and(eq(schema.socialPosts.id, id), eq(schema.socialPosts.tenantId, tenantId), isNull(schema.socialPosts.deletedAt)))
         .returning();
     });
-    if (\!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
+    if (!post) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Social post not found" } });
     logAudit({ tenantId, userId, action: "social_post.reschedule", resourceType: "social_post",
       resourceId: id, details: { scheduledAt }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: post });
@@ -495,7 +495,7 @@ router.post("/:id/reschedule", async (req: Request, res: Response) => {
 // ---------- GET /approval-queue --- Posts pending broker approval (managing_broker+) ---------- //
 router.get("/approval-queue", requireRole("managing_broker"), async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req.user\!;
+    const { tenantId } = req.user!;
     const page = parseInt(req.query.page as string) || 1;
     const limit = Math.min(parseInt(req.query.limit as string) || 25, 100);
     const offset = (page - 1) * limit;
@@ -523,9 +523,9 @@ router.get("/approval-queue", requireRole("managing_broker"), async (req: Reques
 // ---------- POST /milestone --- Auto-generate milestone post ---------- //
 router.post("/milestone", async (req: Request, res: Response) => {
   try {
-    const { userId, tenantId } = req.user\!;
+    const { userId, tenantId } = req.user!;
     const { transactionId, milestoneType } = req.body;
-    if (\!transactionId || \!milestoneType) {
+    if (!transactionId || !milestoneType) {
       return res.status(400).json({ error: { code: "VALIDATION_ERROR", message: "transactionId and milestoneType are required" } });
     }
     // Verify transaction exists
@@ -535,19 +535,19 @@ router.post("/milestone", async (req: Request, res: Response) => {
           eq(schema.transactions.id, transactionId),
           eq(schema.transactions.tenantId, tenantId),
           isNull(schema.transactions.deletedAt)));
-      return \!\!txn;
+      return !!txn;
     });
-    if (\!txnExists) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Transaction not found" } });
+    if (!txnExists) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Transaction not found" } });
     // Generate milestone-specific content
     const milestoneContent: Record<string, string> = {
-      new_listing: "Thrilled to announce a brand new listing\! This stunning property just hit the market.",
-      under_contract: "Great news\! This property is officially under contract. Congratulations to all parties\!",
-      price_change: "Price update on this fantastic property\! Now is the perfect time to schedule a showing.",
-      closed: "JUST SOLD\! Another successful closing. Thank you to my amazing clients for trusting me with this journey.",
-      inspection_complete: "Inspection complete and moving forward\! One step closer to closing day.",
-      appraisal_received: "Appraisal is in and looking great\! The process continues smoothly.",
+      new_listing: "Thrilled to announce a brand new listing! This stunning property just hit the market.",
+      under_contract: "Great news! This property is officially under contract. Congratulations to all parties!",
+      price_change: "Price update on this fantastic property! Now is the perfect time to schedule a showing.",
+      closed: "JUST SOLD! Another successful closing. Thank you to my amazing clients for trusting me with this journey.",
+      inspection_complete: "Inspection complete and moving forward! One step closer to closing day.",
+      appraisal_received: "Appraisal is in and looking great! The process continues smoothly.",
     };
-    const content = milestoneContent[milestoneType] || "Exciting milestone reached in this transaction\!"
+    const content = milestoneContent[milestoneType] || "Exciting milestone reached in this transaction!"
     const postTypeMap: Record<string, string> = {
       new_listing: "new_listing", under_contract: "under_contract",
       price_change: "price_reduction", closed: "just_sold",

@@ -1,9 +1,11 @@
 import { pgTable, uuid, text, timestamp, varchar, jsonb, integer } from 'drizzle-orm/pg-core';
+import { tenants } from './tenants';
+import { users } from './users';
 
 export const mediaAssets = pgTable('media_assets', {
   id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id').notNull(),
-  agentId: uuid('agent_id').notNull(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'restrict' }),
+  agentId: uuid('agent_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   assetType: varchar('asset_type', { length: 30 }).notNull(),
   mediaType: varchar('media_type', { length: 50 }).notNull(),
   title: varchar('title', { length: 300 }).notNull(),
