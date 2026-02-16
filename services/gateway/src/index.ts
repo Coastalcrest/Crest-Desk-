@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { defaultLimiter } from './middleware/rate-limiter';
+import { requestLogger } from './middleware/request-logger';
 import { globalErrorHandler } from './middleware/error-handler';
 import { logger } from './lib/logger';
 
@@ -81,6 +82,9 @@ app.use(defaultLimiter);
 
 // 6. JSON body parser
 app.use(express.json({ limit: '1mb' }));
+
+// 7. Request logger (after body parser so req.body is available)
+app.use(requestLogger);
 
 // ---- Health check (unauthenticated) ----------------------------- //
 

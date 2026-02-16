@@ -1,9 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, type JwtPayload } from '../lib/jwt';
-import { db } from '../lib/db';
-import { sessions } from '../lib/schema';
-import { eq, and, isNull, gt } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
+import { isTokenBlacklisted, isUserTokenRevoked } from '../lib/token-blacklist';
 import { logger } from '../lib/logger';
 
 export interface TokenPayload {
@@ -12,6 +9,7 @@ export interface TokenPayload {
   role: string;
   perms: string[];
   jti: string;
+  iat: number;       // issued-at (epoch seconds)
 }
 
 declare global {
@@ -25,8 +23,10 @@ declare global {
 /**
  * JWT verification middleware.
  * 1. Reads Bearer token
- * 2. Verifies JWT signature and expiry
- * 3. Attaches decoded payload to req.user
+ * 2. Verifies JWT signature, expiry, issuer, and audience
+ * 3. Checks token blacklist (single-token revocation)
+ * 4. Checks user-level revocation (blanket invalidation)
+ * 5. Attaches decoded payload to req.user
  */
 export async function authenticate(
   req: Request,
@@ -49,12 +49,53 @@ export async function authenticate(
     const token = authHeader.slice(7);
     const decoded = verifyAccessToken(token);
 
+    // ---- Token blacklist checks ---------------------------------- //
+
+    // Check if this specific token was revoked (e.g. on logout)
+    if (decoded.jti) {
+      const blacklisted = await isTokenBlacklisted(decoded.jti);
+      if (blacklisted) {
+        logger.warn(
+          { jti: decoded.jti, userId: decoded.sub },
+          'Rejected blacklisted token',
+        );
+        res.status(401).json({
+          error: {
+            code: 'TOKEN_REVOKED',
+            message: 'This token has been revoked',
+          },
+        });
+        return;
+      }
+    }
+
+    // Check if ALL tokens for this user were revoked (e.g. password change)
+    if (decoded.sub && decoded.iat) {
+      const userRevoked = await isUserTokenRevoked(decoded.sub, decoded.iat);
+      if (userRevoked) {
+        logger.warn(
+          { userId: decoded.sub, iat: decoded.iat },
+          'Rejected token issued before user-level revocation',
+        );
+        res.status(401).json({
+          error: {
+            code: 'TOKEN_REVOKED',
+            message: 'All sessions have been invalidated. Please log in again.',
+          },
+        });
+        return;
+      }
+    }
+
+    // ---- Attach user to request ---------------------------------- //
+
     req.user = {
       sub: decoded.sub,
       tid: decoded.tid,
       role: decoded.role,
       perms: decoded.perms,
       jti: decoded.jti,
+      iat: decoded.iat,
     };
 
     // Also set legacy fields for backwards compat with any code using userId/tenantId

@@ -6,7 +6,6 @@ import { authenticator } from 'otplib';
 import { toDataURL } from 'qrcode';
 import crypto from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
-import jwt from 'jsonwebtoken';
 
 import { db } from '../lib/db';
 import { users, sessions, tenants } from '../lib/schema';
@@ -15,7 +14,14 @@ import {
   verifyAccessToken,
   generateRefreshToken,
   hashRefreshToken,
+  getAccessTokenMaxAge,
+  signMfaToken,
+  verifyMfaToken,
 } from '../lib/jwt';
+import {
+  blacklistToken,
+  blacklistAllUserTokens,
+} from '../lib/token-blacklist';
 import {
   hashPassword,
   verifyPassword,
@@ -34,8 +40,6 @@ import { redis } from '../lib/redis';
 // ------------------------------------------------------------------ //
 //  Constants                                                          //
 // ------------------------------------------------------------------ //
-
-const JWT_SECRET = process.env.JWT_SECRET ?? 'changeme-not-for-production';
 
 const REFRESH_COOKIE_NAME = 'crestdesk_refresh';
 const REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -393,11 +397,7 @@ router.post(
 
     // If MFA is enabled, return a short-lived MFA token
     if (user.mfaEnabled) {
-      const mfaToken = jwt.sign(
-        { sub: user.id, purpose: 'mfa' },
-        JWT_SECRET,
-        { expiresIn: MFA_TOKEN_EXPIRY },
-      );
+      const mfaToken = signMfaToken(user.id, MFA_TOKEN_EXPIRY);
 
       logger.info({ requestId, userId: user.id }, 'MFA required for login');
 
@@ -455,15 +455,8 @@ router.post(
     // Verify MFA token JWT
     let decoded: { sub: string; purpose: string };
     try {
-      decoded = jwt.verify(body.mfaToken, JWT_SECRET) as {
-        sub: string;
-        purpose: string;
-      };
+      decoded = verifyMfaToken(body.mfaToken);
     } catch {
-      throw new AppError(401, 'INVALID_MFA_TOKEN', 'MFA token is invalid or expired');
-    }
-
-    if (decoded.purpose !== 'mfa') {
       throw new AppError(401, 'INVALID_MFA_TOKEN', 'MFA token is invalid or expired');
     }
 
@@ -861,6 +854,11 @@ router.post(
     const requestId = getRequestId(req);
     const refreshToken = req.cookies?.crestdesk_refresh as string | undefined;
 
+    // Blacklist the current access token so it can't be reused
+    if (req.user!.jti) {
+      await blacklistToken(req.user!.jti, getAccessTokenMaxAge());
+    }
+
     if (refreshToken) {
       const tokenHash = hashRefreshToken(refreshToken);
 
@@ -1011,13 +1009,16 @@ router.post(
     // Delete the Redis key
     await redis.del(`pwd_reset:${tokenHash}`);
 
-    // Revoke ALL user sessions
+    // Revoke ALL user sessions (both DB sessions and JWT blacklist)
     await db
       .update(sessions)
       .set({ revokedAt: new Date() })
       .where(
         and(eq(sessions.userId, userId), isNull(sessions.revokedAt)),
       );
+
+    // Blacklist all outstanding access tokens for this user
+    await blacklistAllUserTokens(userId, getAccessTokenMaxAge());
 
     // Load user for audit
     const [user] = await db
