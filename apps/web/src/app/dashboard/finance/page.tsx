@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   DollarSign,
   TrendingUp,
@@ -8,94 +9,183 @@ import {
   BarChart3,
   Download,
   Filter,
-  ChevronDown,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
-  Building2,
-  Home,
-  Key,
   Search,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
+import { api, apiPaginated } from '@/lib/api';
 
+// ---------------------------------------------------------------------------
+// Types — aligned with API responses
+// ---------------------------------------------------------------------------
 
-interface AgentCommission {
-  rank: number;
-  name: string;
-  avatar: string;
-  ytdCommission: number;
-  dealsClosed: number;
-  avgDeal: number;
-  trend: 'up' | 'down';
-  trendPct: number;
+interface CommissionStats {
+  totalYtd: number;
+  totalThisMonth: number;
+  pendingCount: number;
+  averageDeal: number;
+  topAgents: TopAgent[];
 }
 
-interface MonthlyTrend {
-  month: string;
-  amount: number;
-  deals: number;
-  change: number;
+interface TopAgent {
+  agentId: string;
+  agentFirstName: string;
+  agentLastName: string;
+  totalCommission: number;
+  dealCount: number;
 }
+
+interface Commission {
+  id: string;
+  dealId: string;
+  agentId: string;
+  salePrice: number;
+  commissionRate: number;
+  totalCommission: number;
+  brokerageAmount: number;
+  agentAmount: number;
+  referralFee: number;
+  franchiseFee: number;
+  netAgentAmount: number;
+  dealType: string;
+  closingDate: string;
+  status: string;
+  dealName: string;
+  propertyAddress: string;
+  agentFirstName: string;
+  agentLastName: string;
+  agentEmail: string;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function CommissionDashboardPage() {
   const [dateRange, setDateRange] = useState('ytd');
   const [selectedAgent, setSelectedAgent] = useState('all');
   const [dealType, setDealType] = useState('all');
-  const [isLoading, setIsLoading] = useState(true);
 
-  const [stats] = useState({
-    ytdCommission: 1247850,
-    thisMonth: 142300,
-    pendingCommission: 87650,
-    avgDealCommission: 8425,
-    ytdChange: 12.5,
-    monthChange: 8.3,
-    pendingChange: -3.2,
-    avgChange: 5.1,
+  // ----- API queries -----
+
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useQuery<CommissionStats>({
+    queryKey: ['commission-stats'],
+    queryFn: () => api<CommissionStats>('/commissions/stats'),
   });
 
-  const [agents] = useState([
-    { rank: 1, name: 'Sarah Mitchell', avatar: 'SM', ytdCommission: 312450, dealsClosed: 38, avgDeal: 8222, trend: 'up', trendPct: 15.2 },
-    { rank: 2, name: 'James Rodriguez', avatar: 'JR', ytdCommission: 287300, dealsClosed: 32, avgDeal: 8978, trend: 'up', trendPct: 8.7 },
-    { rank: 3, name: 'Emily Chen', avatar: 'EC', ytdCommission: 245100, dealsClosed: 28, avgDeal: 8754, trend: 'up', trendPct: 22.1 },
-    { rank: 4, name: 'Michael Foster', avatar: 'MF', ytdCommission: 218700, dealsClosed: 26, avgDeal: 8412, trend: 'down', trendPct: 4.3 },
-    { rank: 5, name: 'Lisa Thompson', avatar: 'LT', ytdCommission: 184300, dealsClosed: 24, avgDeal: 7679, trend: 'up', trendPct: 11.8 },
-  ]);
+  const {
+    data: commissionsResponse,
+    isLoading: commissionsLoading,
+    error: commissionsError,
+  } = useQuery({
+    queryKey: ['commissions-recent'],
+    queryFn: () => apiPaginated<Commission>('/commissions?page=1&pageSize=10'),
+  });
 
-  const [monthlyTrends] = useState([
-    { month: 'August 2025', amount: 198400, deals: 22, change: 5.2 },
-    { month: 'September 2025', amount: 215700, deals: 25, change: 8.7 },
-    { month: 'October 2025', amount: 187300, deals: 20, change: -13.2 },
-    { month: 'November 2025', amount: 203500, deals: 23, change: 8.7 },
-    { month: 'December 2025', amount: 178900, deals: 19, change: -12.1 },
-    { month: 'January 2026', amount: 142300, deals: 17, change: -20.5 },
-  ]);
+  const recentCommissions = commissionsResponse?.data ?? [];
+  const topAgents = stats?.topAgents ?? [];
 
-  const dealTypeBreakdowns = [
-    { type: "Residential", icon: <Home className="w-5 h-5" />, percentage: 62, amount: 773667, color: "bg-blue-500" },
-    { type: "Commercial", icon: <Building2 className="w-5 h-5" />, percentage: 28, amount: 349398, color: "bg-emerald-500" },
-    { type: "Rental", icon: <Key className="w-5 h-5" />, percentage: 10, amount: 124785, color: "bg-amber-500" },
-  ];
+  const isLoading = statsLoading || commissionsLoading;
+  const error = statsError ?? commissionsError;
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+  // ----- Helpers -----
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number | string | null | undefined) => {
+    if (val === null || val === undefined) return '$0';
+    const n = typeof val === 'string' ? parseFloat(val) : val;
+    if (isNaN(n)) return '$0';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(n);
+  };
+
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getInitials = (first: string | null | undefined, last: string | null | undefined) => {
+    const f = first?.charAt(0)?.toUpperCase() ?? '';
+    const l = last?.charAt(0)?.toUpperCase() ?? '';
+    return f + l || '??';
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-green-100 text-green-700';
+      case 'pending':
+        return 'bg-amber-100 text-amber-700';
+      case 'processing':
+        return 'bg-blue-100 text-blue-700';
+      default:
+        return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  // ----- Stat cards -----
 
   const statCards = [
-    { label: "YTD Commission", value: stats.ytdCommission, change: stats.ytdChange, icon: DollarSign, color: "text-[var(--color-primary)]", bg: "bg-blue-50" },
-    { label: "This Month", value: stats.thisMonth, change: stats.monthChange, icon: TrendingUp, color: "text-[var(--color-secondary)]", bg: "bg-teal-50" },
-    { label: "Pending Commission", value: stats.pendingCommission, change: stats.pendingChange, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
-    { label: "Avg Deal Commission", value: stats.avgDealCommission, change: stats.avgChange, icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
+    {
+      label: 'YTD Commission',
+      value: stats?.totalYtd ?? 0,
+      icon: DollarSign,
+      color: 'text-[var(--color-primary)]',
+      bg: 'bg-blue-50',
+    },
+    {
+      label: 'This Month',
+      value: stats?.totalThisMonth ?? 0,
+      icon: TrendingUp,
+      color: 'text-[var(--color-secondary)]',
+      bg: 'bg-teal-50',
+    },
+    {
+      label: 'Pending Commissions',
+      value: stats?.pendingCount ?? 0,
+      icon: Clock,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+      isCurrency: false,
+    },
+    {
+      label: 'Avg Deal Commission',
+      value: stats?.averageDeal ?? 0,
+      icon: BarChart3,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+    },
   ];
+
+  // ----- Loading state -----
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-[var(--color-primary)]" />
+      </div>
+    );
+  }
+
+  // ----- Error state -----
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-red-600">
+        <AlertCircle className="h-10 w-10" />
+        <p className="text-sm font-medium">Failed to load commission data</p>
+        <p className="text-xs text-gray-500">{(error as Error).message}</p>
       </div>
     );
   }
@@ -105,7 +195,7 @@ export default function CommissionDashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: "Inter, sans-serif" }}>
+          <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: 'Inter, sans-serif' }}>
             Commission Dashboard
           </h1>
           <p className="text-sm text-gray-500 mt-1">Track agent commissions, trends, and deal performance</p>
@@ -131,9 +221,11 @@ export default function CommissionDashboardPage() {
           </select>
           <select value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
             <option value="all">All Agents</option>
-            <option value="sarah">Sarah Mitchell</option>
-            <option value="james">James Rodriguez</option>
-            <option value="emily">Emily Chen</option>
+            {topAgents.map((a) => (
+              <option key={a.agentId} value={a.agentId}>
+                {a.agentFirstName} {a.agentLastName}
+              </option>
+            ))}
           </select>
           <select value={dealType} onChange={(e) => setDealType(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]">
             <option value="all">All Deal Types</option>
@@ -148,26 +240,24 @@ export default function CommissionDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card) => {
           const Icon = card.icon;
-          const isPositive = card.change >= 0;
+          const isCurrency = (card as { isCurrency?: boolean }).isCurrency !== false;
           return (
             <div key={card.label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-2.5 rounded-lg ${card.bg}`}>
                   <Icon className={`w-5 h-5 ${card.color}`} />
                 </div>
-                <div className={`flex items-center gap-1 text-xs font-medium ${isPositive ? "text-green-600" : "text-red-600"}`}>
-                  {isPositive ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                  {Math.abs(card.change)}%
-                </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(card.value)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {isCurrency ? formatCurrency(card.value) : card.value}
+              </p>
               <p className="text-sm text-gray-500 mt-1">{card.label}</p>
             </div>
           );
         })}
       </div>
 
-      {/* Commission by Agent Table */}
+      {/* Top Agents Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -185,130 +275,112 @@ export default function CommissionDashboardPage() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rank</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Agent</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">YTD Commission</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Commission</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Deals Closed</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg per Deal</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Trend</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {agents.map((agent) => (
-                <tr key={agent.rank} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                      agent.rank === 1 ? "bg-yellow-100 text-yellow-700" :
-                      agent.rank === 2 ? "bg-gray-100 text-gray-600" :
-                      agent.rank === 3 ? "bg-orange-100 text-orange-700" :
-                      "bg-gray-50 text-gray-500"
-                    }`}>
-                      {agent.rank}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-sm font-semibold">
-                        {agent.avatar}
+              {topAgents.map((agent, idx) => {
+                const rank = idx + 1;
+                const avgPerDeal = agent.dealCount > 0 ? agent.totalCommission / agent.dealCount : 0;
+                const initials = getInitials(agent.agentFirstName, agent.agentLastName);
+                return (
+                  <tr key={agent.agentId} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                        rank === 1 ? 'bg-yellow-100 text-yellow-700' :
+                        rank === 2 ? 'bg-gray-100 text-gray-600' :
+                        rank === 3 ? 'bg-orange-100 text-orange-700' :
+                        'bg-gray-50 text-gray-500'
+                      }`}>
+                        {rank}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-sm font-semibold">
+                          {initials}
+                        </div>
+                        <span className="font-medium text-gray-900">
+                          {agent.agentFirstName} {agent.agentLastName}
+                        </span>
                       </div>
-                      <span className="font-medium text-gray-900">{agent.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-semibold text-gray-900">{formatCurrency(agent.ytdCommission)}</td>
-                  <td className="px-6 py-4 text-right text-gray-600">{agent.dealsClosed}</td>
-                  <td className="px-6 py-4 text-right text-gray-600">{formatCurrency(agent.avgDeal)}</td>
-                  <td className="px-6 py-4 text-right">
-                    <span className={`inline-flex items-center gap-1 text-sm font-medium ${agent.trend === "up" ? "text-green-600" : "text-red-600"}`}>
-                      {agent.trend === "up" ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                      {agent.trendPct}%%
-                    </span>
-                  </td>
+                    </td>
+                    <td className="px-6 py-4 text-right font-semibold text-gray-900">{formatCurrency(agent.totalCommission)}</td>
+                    <td className="px-6 py-4 text-right text-gray-600">{agent.dealCount}</td>
+                    <td className="px-6 py-4 text-right text-gray-600">{formatCurrency(avgPerDeal)}</td>
+                  </tr>
+                );
+              })}
+              {topAgents.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-400">No agent data available</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Trend */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Monthly Commission Trend</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Last 6 months performance</p>
-          </div>
-          <div className="p-6 space-y-3">
-            {monthlyTrends.map((item) => {
-              const maxAmount = Math.max(...monthlyTrends.map((t) => t.amount));
-              const widthPct = (item.amount / maxAmount) * 100;
-              const isPositive = item.change >= 0;
-              return (
-                <div key={item.month} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="font-medium text-gray-700">{item.month}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500 text-xs">{item.deals} deals</span>
-                      <span className="font-semibold text-gray-900">{formatCurrency(item.amount)}</span>
-                      <span className={`text-xs font-medium ${isPositive ? "text-green-600" : "text-red-600"}`}>
-                        {isPositive ? "+" : ""}{item.change}%%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5">
-                    <div className="h-2.5 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] transition-all duration-500" style={{ width: `${widthPct}%%` }}></div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Recent Commissions Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Commissions</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Latest commission records</p>
         </div>
-
-        {/* Deal Type Breakdown */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Commission by Deal Type</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Distribution across property categories</p>
-          </div>
-          <div className="p-6 space-y-6">
-            {dealTypeBreakdowns.map((item) => (
-              <div key={item.type} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      item.type === "Residential" ? "bg-blue-50 text-blue-600" :
-                      item.type === "Commercial" ? "bg-emerald-50 text-emerald-600" :
-                      "bg-amber-50 text-amber-600"
-                    }`}>
-                      {item.icon}
-                    </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Deal</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Agent</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Sale Price</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Commission</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Agent Net</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Closing Date</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {recentCommissions.map((c) => (
+                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
                     <div>
-                      <p className="font-medium text-gray-900">{item.type}</p>
-                      <p className="text-sm text-gray-500">{formatCurrency(item.amount)}</p>
+                      <p className="font-medium text-gray-900 text-sm">{c.dealName}</p>
+                      <p className="text-xs text-gray-500 truncate max-w-[200px]">{c.propertyAddress}</p>
                     </div>
-                  </div>
-                  <span className="text-2xl font-bold text-gray-900">{item.percentage}%%</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-3">
-                  <div className={`h-3 rounded-full ${item.color} transition-all duration-500`} style={{ width: `${item.percentage}%%` }}></div>
-                </div>
-              </div>
-            ))}
-            <div className="pt-4 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-gray-700">Total Commission</span>
-                <span className="text-xl font-bold text-gray-900">{formatCurrency(stats.ytdCommission)}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 pt-2">
-              {dealTypeBreakdowns.map((item) => (
-                <div key={item.type} className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${item.color}`}></div>
-                  <span className="text-xs text-gray-500">{item.type}</span>
-                </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center text-xs font-semibold">
+                        {getInitials(c.agentFirstName, c.agentLastName)}
+                      </div>
+                      <span className="text-sm text-gray-700">{c.agentFirstName} {c.agentLastName}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-gray-600 capitalize">{c.dealType}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right text-sm text-gray-600">{formatCurrency(c.salePrice)}</td>
+                  <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">{formatCurrency(c.totalCommission)}</td>
+                  <td className="px-6 py-4 text-right text-sm text-gray-600">{formatCurrency(c.netAgentAmount)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{formatDate(c.closingDate)}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusBadge(c.status)}`}>
+                      {c.status}
+                    </span>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
+              {recentCommissions.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-400">No commissions found</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -325,20 +397,20 @@ export default function CommissionDashboardPage() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500 mb-1">Total Deals</p>
-            <p className="text-2xl font-bold text-gray-900">148</p>
+            <p className="text-sm text-gray-500 mb-1">YTD Commission</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats?.totalYtd ?? 0)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500 mb-1">Active Agents</p>
-            <p className="text-2xl font-bold text-gray-900">12</p>
+            <p className="text-sm text-gray-500 mb-1">Top Agents</p>
+            <p className="text-2xl font-bold text-gray-900">{topAgents.length}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500 mb-1">Avg Close Time</p>
-            <p className="text-2xl font-bold text-gray-900">34 days</p>
+            <p className="text-sm text-gray-500 mb-1">Pending</p>
+            <p className="text-2xl font-bold text-gray-900">{stats?.pendingCount ?? 0}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-gray-500 mb-1">Close Rate</p>
-            <p className="text-2xl font-bold text-gray-900">68%%</p>
+            <p className="text-sm text-gray-500 mb-1">Avg Deal</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats?.averageDeal ?? 0)}</p>
           </div>
         </div>
       </div>
