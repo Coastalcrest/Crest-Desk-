@@ -16,30 +16,41 @@ import {
   File,
   AlertCircle,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, apiPaginated, PaginatedResponse } from '@/lib/api';
 import { addToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-interface Document {
+interface ApiDocument {
   id: string;
-  name: string;
-  type: string;
+  tenantId: string;
   transactionId: string | null;
-  transactionAddress: string | null;
-  status: 'compliant' | 'flagged' | 'unsigned' | 'signed';
-  createdAt: string;
-  size: number;
+  documentType: string;
+  originalFilename: string;
+  s3Key: string;
+  s3Bucket: string | null;
+  fileSizeBytes: number;
   mimeType: string;
+  folderPath: string | null;
+  isCompliant: boolean | null;
+  isSigned: boolean | null;
+  classificationConfidence: string | null;
+  extractedData: unknown;
+  complianceIssues: unknown;
+  uploadedBy: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
 }
 
-interface DocumentsResponse {
-  documents: Document[];
-  total: number;
-  page: number;
-  pageSize: number;
+/** Compute a display status from the API's boolean flags */
+function computeDocStatus(doc: ApiDocument): 'compliant' | 'flagged' | 'unsigned' | 'signed' {
+  if (doc.isCompliant === false) return 'flagged';
+  if (doc.isSigned) return 'signed';
+  if (doc.isCompliant) return 'compliant';
+  return 'unsigned';
 }
 
 interface Transaction {
@@ -411,11 +422,11 @@ export default function DocumentsPage() {
   });
 
   // Fetch transactions for filter dropdown
-  const { data: transactionsData } = useQuery<{ transactions: Transaction[] }>({
+  const { data: transactionsData } = useQuery<Transaction[]>({
     queryKey: ['transactions-list'],
-    queryFn: () => api<{ transactions: Transaction[] }>('/transactions?pageSize=100'),
+    queryFn: () => api<Transaction[]>('/transactions?pageSize=100'),
   });
-  const transactions = transactionsData?.transactions ?? [];
+  const transactions = transactionsData ?? [];
 
   // Fetch documents
   const queryParams = new URLSearchParams();
@@ -432,13 +443,13 @@ export default function DocumentsPage() {
     data,
     isLoading,
     error,
-  } = useQuery<DocumentsResponse>({
+  } = useQuery<PaginatedResponse<ApiDocument>>({
     queryKey: ['documents', page, search, filters],
-    queryFn: () => api<DocumentsResponse>(`/documents?${queryParams.toString()}`),
+    queryFn: () => apiPaginated<ApiDocument>(`/documents?${queryParams.toString()}`),
   });
 
-  const documents = data?.documents ?? [];
-  const total = data?.total ?? 0;
+  const documents = data?.data ?? [];
+  const total = data?.pagination?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleFilterChange = (next: Record<string, unknown>) => {
@@ -554,7 +565,8 @@ export default function DocumentsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {documents.map((doc) => {
-                      const sc = STATUS_CONFIG[doc.status] ?? STATUS_CONFIG.compliant;
+                      const status = computeDocStatus(doc);
+                      const sc = STATUS_CONFIG[status] ?? STATUS_CONFIG.compliant;
                       return (
                         <tr
                           key={doc.id}
@@ -564,28 +576,28 @@ export default function DocumentsPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                              <span className="truncate text-sm font-medium text-gray-900">{doc.name}</span>
+                              <span className="truncate text-sm font-medium text-gray-900">{doc.originalFilename}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-sm text-gray-600">{doc.type}</span>
+                            <span className="text-sm text-gray-600">{doc.documentType}</span>
                           </td>
                           <td className="hidden px-4 py-3 md:table-cell">
                             <span className="truncate text-sm text-gray-500">
-                              {doc.transactionAddress ?? '--'}
+                              {doc.transactionId ?? '--'}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium', sc.bg, sc.text)}>
                               <span className={cn('h-1.5 w-1.5 rounded-full', sc.dot)} />
-                              {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
+                              {status.charAt(0).toUpperCase() + status.slice(1)}
                             </span>
                           </td>
                           <td className="hidden px-4 py-3 sm:table-cell">
                             <span className="text-sm text-gray-500">{formatDate(doc.createdAt)}</span>
                           </td>
                           <td className="hidden px-4 py-3 text-right lg:table-cell">
-                            <span className="text-sm text-gray-500">{formatFileSize(doc.size)}</span>
+                            <span className="text-sm text-gray-500">{formatFileSize(doc.fileSizeBytes)}</span>
                           </td>
                         </tr>
                       );

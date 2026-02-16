@@ -8,7 +8,6 @@ import {
   Clock,
   CheckCircle2,
   CornerDownLeft,
-  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -23,48 +22,43 @@ import {
   FileSearch,
   SkipForward,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, apiPaginated, PaginatedResponse } from '@/lib/api';
 import { addToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-interface ReviewQueueStats {
-  pending: number;
-  inReview: number;
-  approvedThisWeek: number;
-  returned: number;
-}
 
-interface FindingCounts {
-  critical: number;
-  warning: number;
-  info: number;
+/** Shape returned by GET /review-queue/stats after api() unwraps { data } */
+interface ReviewQueueStatsResponse {
+  countsByStatus: Record<string, number>;
+  avgReadinessScore: number;
+  dueThisWeek: number;
 }
 
 interface ReviewQueueItem {
   id: string;
   transactionId: string;
+  status: string;
+  priority: number;
+  riskScore: number | null;
+  readinessScore: number;
+  assignedReviewerId: string | null;
+  assignedAt: string | null;
+  reviewStartedAt: string | null;
+  reviewCompletedAt: string | null;
+  returnReason: string | null;
+  returnedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Joined transaction fields
   propertyAddress: string;
-  transactionType: 'purchase' | 'listing' | 'dual';
-  transactionStatus: string;
+  closingDate: string | null;
   buyerName: string | null;
   sellerName: string | null;
-  closingDate: string | null;
-  readinessScore: number;
-  priority: number;
-  status: 'pending' | 'in_review' | 'approved' | 'returned' | 'escalated';
-  findingCounts: FindingCounts;
-  assignedReviewer: string | null;
-  createdAt: string;
-}
-
-interface ReviewQueueResponse {
-  items: ReviewQueueItem[];
-  total: number;
-  page: number;
-  pageSize: number;
+  transactionType: string;
+  transactionStatus: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -290,9 +284,9 @@ function ReviewQueueRow({
                       : `${days}d until closing`}
                 </span>
               )}
-              {item.assignedReviewer ? (
+              {item.assignedReviewerId ? (
                 <span className="rounded-full bg-[#1B3A5C]/10 px-2 py-0.5 text-xs font-medium text-[#1B3A5C]">
-                  {item.assignedReviewer}
+                  Assigned
                 </span>
               ) : (
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
@@ -303,29 +297,8 @@ function ReviewQueueRow({
           </div>
         </div>
 
-        {/* Right section: Score + Findings + Actions */}
+        {/* Right section: Score + Actions */}
         <div className="flex items-center gap-4 lg:flex-shrink-0">
-          {/* Findings badges */}
-          <div className="flex items-center gap-1.5">
-            {item.findingCounts.critical > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                <AlertCircle className="h-3 w-3" />
-                {item.findingCounts.critical}
-              </span>
-            )}
-            {item.findingCounts.warning > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
-                <AlertTriangle className="h-3 w-3" />
-                {item.findingCounts.warning}
-              </span>
-            )}
-            {item.findingCounts.info > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                {item.findingCounts.info} info
-              </span>
-            )}
-          </div>
-
           {/* Readiness Score */}
           <CircularScore score={item.readinessScore} size={44} />
 
@@ -391,26 +364,32 @@ export default function ReviewQueuePage() {
   const [startingReviewId, setStartingReviewId] = useState<string | null>(null);
 
   // ---- Stats query ----
-  const { data: stats, isLoading: statsLoading } = useQuery<ReviewQueueStats>({
+  const { data: statsRaw, isLoading: statsLoading } = useQuery<ReviewQueueStatsResponse>({
     queryKey: ['review-queue-stats'],
-    queryFn: () => api<ReviewQueueStats>('/review-queue/stats'),
+    queryFn: () => api<ReviewQueueStatsResponse>('/review-queue/stats'),
   });
+  const stats = statsRaw ? {
+    pending: statsRaw.countsByStatus.pending ?? 0,
+    inReview: statsRaw.countsByStatus.in_review ?? 0,
+    approvedThisWeek: statsRaw.countsByStatus.approved ?? 0,
+    returned: statsRaw.countsByStatus.returned ?? 0,
+  } : null;
 
   // ---- Queue query ----
   const queryParams = new URLSearchParams();
   if (filter !== 'all') queryParams.set('status', filter);
   queryParams.set('sortBy', sortBy);
   queryParams.set('page', String(page));
-  queryParams.set('limit', String(PAGE_SIZE));
+  queryParams.set('pageSize', String(PAGE_SIZE));
 
-  const { data, isLoading, error } = useQuery<ReviewQueueResponse>({
+  const { data, isLoading, error } = useQuery<PaginatedResponse<ReviewQueueItem>>({
     queryKey: ['review-queue', filter, sortBy, page],
     queryFn: () =>
-      api<ReviewQueueResponse>(`/review-queue?${queryParams.toString()}`),
+      apiPaginated<ReviewQueueItem>(`/review-queue?${queryParams.toString()}`),
   });
 
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
+  const items = data?.data ?? [];
+  const total = data?.pagination?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // ---- Start Review mutation ----

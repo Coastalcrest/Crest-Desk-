@@ -25,19 +25,23 @@ import { cn } from '@/lib/utils';
 
 interface FormTemplate {
   id: string;
-  name: string;
-  type: 'agreement' | 'disclosure' | 'addendum';
+  formKey: string;
+  formName: string;
+  formType: string;
   jurisdiction: string;
-  version: string;
   effectiveDate: string;
-  category: 'standard' | 'custom';
-  description?: string;
+  isSystemForm: boolean;
+  supersededDate: string | null;
+  htmlTemplate: unknown;
+  jsonSchema: unknown;
+  requiredFields: string[];
+  conditionalFields: unknown;
+  clauseLibrary: unknown;
+  tenantId: string | null;
+  createdBy: string | null;
+  createdAt: string;
   updatedAt: string;
-}
-
-interface FormsResponse {
-  forms: FormTemplate[];
-  total: number;
+  deletedAt: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,10 +165,10 @@ function FormCard({
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-[#1B3A5C]" />
           <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">
-            {form.name}
+            {form.formName}
           </h3>
         </div>
-        {form.category === 'custom' && (
+        {!form.isSystemForm && (
           <Star className="h-4 w-4 text-amber-400 fill-amber-400 flex-shrink-0" />
         )}
       </div>
@@ -173,10 +177,10 @@ function FormCard({
         <span
           className={cn(
             'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-            TYPE_BADGE_COLORS[form.type] ?? 'bg-gray-100 text-gray-700',
+            TYPE_BADGE_COLORS[form.formType] ?? 'bg-gray-100 text-gray-700',
           )}
         >
-          {form.type.charAt(0).toUpperCase() + form.type.slice(1)}
+          {form.formType.charAt(0).toUpperCase() + form.formType.slice(1)}
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
           <MapPin className="h-3 w-3" />
@@ -187,7 +191,7 @@ function FormCard({
       <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
         <span className="flex items-center gap-1">
           <Tag className="h-3 w-3" />
-          v{form.version}
+          {form.formKey}
         </span>
         <span className="flex items-center gap-1">
           <Calendar className="h-3 w-3" />
@@ -199,11 +203,6 @@ function FormCard({
         </span>
       </div>
 
-      {form.description && (
-        <p className="mt-3 text-xs text-gray-500 line-clamp-2">
-          {form.description}
-        </p>
-      )}
     </button>
   );
 }
@@ -224,16 +223,16 @@ export default function FormsLibraryPage() {
     queryFn: () => {
       const params = new URLSearchParams();
       if (selectedState !== 'All States') params.set('jurisdiction', selectedState);
-      if (selectedType !== 'All Types') params.set('type', selectedType);
+      if (selectedType !== 'All Types') params.set('formType', selectedType);
       if (searchQuery) params.set('search', searchQuery);
       const qs = params.toString();
-      return api<FormsResponse>(`/forms${qs ? `?${qs}` : ''}`);
+      return api<FormTemplate[]>(`/forms${qs ? `?${qs}` : ''}`);
     },
   });
 
-  const forms = data?.forms ?? [];
-  const standardForms = forms.filter((f) => f.category === 'standard');
-  const customForms = forms.filter((f) => f.category === 'custom');
+  const forms = data ?? [];
+  const standardForms = forms.filter((f) => f.isSystemForm);
+  const customForms = forms.filter((f) => !f.isSystemForm);
 
   const canCreateCustom =
     user !== null && hasMinRole(user.role, 'principal_broker');
