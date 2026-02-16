@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import {
   Eye, Users, TrendingUp, Target, Calendar, Filter,
   Facebook, Instagram, Linkedin, Youtube, Music2, Twitter, Building2,
@@ -13,6 +15,11 @@ const platformColors: Record<string, string> = {
   youtube: "#FF0000", tiktok: "#000000", x: "#1DA1F2", google: "#4285F4",
 };
 
+const platformNames: Record<string, string> = {
+  facebook: "Facebook", instagram: "Instagram", linkedin: "LinkedIn",
+  youtube: "YouTube", tiktok: "TikTok", x: "X", google: "Google Biz",
+};
+
 const PlatformIcon = ({ platform }: { platform: string }) => {
   const icons: Record<string, React.ReactNode> = {
     facebook: <Facebook className="w-4 h-4" />, instagram: <Instagram className="w-4 h-4" />,
@@ -23,79 +30,70 @@ const PlatformIcon = ({ platform }: { platform: string }) => {
   return <>{icons[platform] || null}</>;
 };
 
-interface PlatformMetrics {
-  key: string;
-  name: string;
-  impressions: number;
-  reach: number;
-  engagement: number;
-  clicks: number;
-  followers: number;
-  change: number;
+interface EngagementSummary {
+  totalImpressions: number;
+  totalReach: number;
+  totalLikes: number;
+  totalComments: number;
+  totalShares: number;
+  totalClicks: number;
+  byPlatform: { platform: string; postCount: number; impressions: number; engagement: number }[];
+  topPosts: { id: string; platform: string; postType: string; content: string; impressions: number; likes: number; comments: number; shares: number; publishedAt: string | null }[];
 }
 
-interface TopPost {
-  id: string;
-  platform: string;
-  content: string;
-  impressions: number;
-  engagement: number;
-  clicks: number;
-  leads: number;
-  date: string;
-}
-
-interface MonthlyData {
+interface TrendMonth {
   month: string;
-  impressions: number;
-  engagement: number;
-  leads: number;
+  postCount: number;
+  totalImpressions: number;
+  totalLikes: number;
+  totalComments: number;
+  totalShares: number;
+  totalClicks: number;
+}
+
+interface ROIData {
+  totalLeadsFromSocial: number;
+  dealsFromSocial: number;
+  revenueFromSocial: string;
+  costPerLead: string;
+  roiPercentage: string;
+}
+
+function formatMonth(monthStr: string): string {
+  const [year, month] = monthStr.split("-");
+  const date = new Date(parseInt(year, 10), parseInt(month, 10) - 1);
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export default function SocialAnalyticsPage() {
   const [dateRange, setDateRange] = useState("last_30");
 
-  const [stats] = useState({
-    totalImpressions: 485200,
-    totalReach: 312800,
-    engagementRate: 4.7,
-    leadsGenerated: 42,
+  const { data: summary } = useQuery<EngagementSummary>({
+    queryKey: ["social-analytics", "engagement-summary"],
+    queryFn: () => api<EngagementSummary>("/social-analytics/engagement/summary"),
   });
 
-  const [platformMetrics] = useState<PlatformMetrics[]>([
-    { key: "facebook", name: "Facebook", impressions: 142000, reach: 89000, engagement: 5.2, clicks: 3200, followers: 12400, change: 8.3 },
-    { key: "instagram", name: "Instagram", impressions: 128000, reach: 95000, engagement: 6.1, clicks: 2800, followers: 18200, change: 12.1 },
-    { key: "linkedin", name: "LinkedIn", impressions: 67000, reach: 42000, engagement: 3.8, clicks: 1900, followers: 5600, change: 5.7 },
-    { key: "youtube", name: "YouTube", impressions: 54000, reach: 38000, engagement: 4.2, clicks: 1200, followers: 3200, change: 15.4 },
-    { key: "tiktok", name: "TikTok", impressions: 48000, reach: 31000, engagement: 7.8, clicks: 980, followers: 8900, change: 22.3 },
-    { key: "x", name: "X", impressions: 32000, reach: 12000, engagement: 2.1, clicks: 890, followers: 4100, change: -1.2 },
-    { key: "google", name: "Google Biz", impressions: 14200, reach: 5800, engagement: 1.4, clicks: 640, followers: 0, change: 3.1 },
-  ]);
+  const { data: trends } = useQuery<TrendMonth[]>({
+    queryKey: ["social-analytics", "trends"],
+    queryFn: () => api<TrendMonth[]>("/social-analytics/engagement/trends"),
+  });
 
-  const [topPosts] = useState<TopPost[]>([
-    { id: "1", platform: "instagram", content: "Just listed! Stunning oceanfront property at 456 Coastal Drive...", impressions: 24500, engagement: 8.2, clicks: 890, leads: 6, date: "Feb 3" },
-    { id: "2", platform: "facebook", content: "Open House Success! Over 40 families toured our newest listing...", impressions: 18700, engagement: 6.5, clicks: 720, leads: 4, date: "Feb 7" },
-    { id: "3", platform: "tiktok", content: "POV: You walk into your dream home for the first time...", impressions: 15200, engagement: 9.1, clicks: 340, leads: 2, date: "Feb 10" },
-    { id: "4", platform: "linkedin", content: "Q1 Market Analysis: Why our coastal market is outperforming...", impressions: 12800, engagement: 4.8, clicks: 560, leads: 5, date: "Feb 12" },
-    { id: "5", platform: "facebook", content: "JUST SOLD - $50K over asking! Congratulations to our clients...", impressions: 11400, engagement: 7.3, clicks: 410, leads: 3, date: "Feb 14" },
-  ]);
+  const { data: roi } = useQuery<ROIData>({
+    queryKey: ["social-analytics", "roi"],
+    queryFn: () => api<ROIData>("/social-analytics/roi"),
+  });
 
-  const [monthlyData] = useState<MonthlyData[]>([
-    { month: "Sep 2025", impressions: 312000, engagement: 3.9, leads: 24 },
-    { month: "Oct 2025", impressions: 345000, engagement: 4.1, leads: 28 },
-    { month: "Nov 2025", impressions: 389000, engagement: 4.3, leads: 31 },
-    { month: "Dec 2025", impressions: 410000, engagement: 4.4, leads: 35 },
-    { month: "Jan 2026", impressions: 448000, engagement: 4.5, leads: 38 },
-    { month: "Feb 2026", impressions: 485200, engagement: 4.7, leads: 42 },
-  ]);
-
-  const [leadAttribution] = useState([
-    { source: "Instagram", contacts: 18, deals: 4, revenue: 48000 },
-    { source: "Facebook", contacts: 14, deals: 3, revenue: 36000 },
-    { source: "LinkedIn", contacts: 6, deals: 2, revenue: 24000 },
-    { source: "TikTok", contacts: 3, deals: 1, revenue: 12000 },
-    { source: "X", contacts: 1, deals: 0, revenue: 0 },
-  ]);
+  // Derived engagement rate
+  const totalEng = (summary?.totalLikes ?? 0) + (summary?.totalComments ?? 0) + (summary?.totalShares ?? 0);
+  const engRate = summary?.totalImpressions
+    ? ((totalEng / summary.totalImpressions) * 100).toFixed(1)
+    : "0";
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -126,7 +124,7 @@ export default function SocialAnalyticsPage() {
                 <Eye className="w-5 h-5" style={{ color: "var(--color-primary, #1B3A5C)" }} />
               </div>
             </div>
-            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{stats.totalImpressions.toLocaleString()}</p>
+            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{summary?.totalImpressions?.toLocaleString() ?? "0"}</p>
             <div className="flex items-center gap-1 mt-1"><ArrowUpRight className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-600 font-medium">+8.3% vs last period</span></div>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -136,7 +134,7 @@ export default function SocialAnalyticsPage() {
                 <Users className="w-5 h-5" style={{ color: "var(--color-secondary, #2A9D8F)" }} />
               </div>
             </div>
-            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{stats.totalReach.toLocaleString()}</p>
+            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{summary?.totalReach?.toLocaleString() ?? "0"}</p>
             <div className="flex items-center gap-1 mt-1"><ArrowUpRight className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-600 font-medium">+6.1% vs last period</span></div>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -146,7 +144,7 @@ export default function SocialAnalyticsPage() {
                 <TrendingUp className="w-5 h-5 text-purple-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{stats.engagementRate}%</p>
+            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{engRate}%</p>
             <div className="flex items-center gap-1 mt-1"><ArrowUpRight className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-600 font-medium">+0.2% vs last period</span></div>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -156,7 +154,7 @@ export default function SocialAnalyticsPage() {
                 <Target className="w-5 h-5 text-amber-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{stats.leadsGenerated}</p>
+            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{roi?.totalLeadsFromSocial ?? 0}</p>
             <div className="flex items-center gap-1 mt-1"><ArrowUpRight className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-600 font-medium">+10.5% vs last period</span></div>
           </div>
         </div>
@@ -165,26 +163,28 @@ export default function SocialAnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-primary, #1B3A5C)" }}>Platform Breakdown</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-            {platformMetrics.map((p) => (
-              <div key={p.key} className="rounded-lg border border-gray-100 p-3 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: platformColors[p.key] }}>
-                    <PlatformIcon platform={p.key} />
+            {(summary?.byPlatform ?? []).map((p) => {
+              const engPct = p.impressions ? ((p.engagement / p.impressions) * 100).toFixed(1) : "0";
+              return (
+                <div key={p.platform} className="rounded-lg border border-gray-100 p-3 hover:shadow-sm transition-shadow">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: platformColors[p.platform] }}>
+                      <PlatformIcon platform={p.platform} />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700">{platformNames[p.platform] ?? p.platform}</span>
                   </div>
-                  <span className="text-xs font-semibold text-gray-700">{p.name}</span>
+                  <p className="text-lg font-bold text-gray-900">{(p.impressions / 1000).toFixed(0)}K</p>
+                  <p className="text-[10px] text-gray-500">impressions</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-xs font-medium" style={{ color: "var(--color-secondary, #2A9D8F)" }}>{engPct}%</span>
+                    <span className="text-[10px] text-gray-400">eng.</span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-[10px] text-gray-400">{p.postCount} posts</span>
+                  </div>
                 </div>
-                <p className="text-lg font-bold text-gray-900">{(p.impressions / 1000).toFixed(0)}K</p>
-                <p className="text-[10px] text-gray-500">impressions</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <span className="text-xs font-medium" style={{ color: "var(--color-secondary, #2A9D8F)" }}>{p.engagement}%</span>
-                  <span className="text-[10px] text-gray-400">eng.</span>
-                </div>
-                <div className="flex items-center gap-0.5 mt-0.5">
-                  {p.change >= 0 ? <ArrowUpRight className="w-3 h-3 text-green-500" /> : <ArrowDownRight className="w-3 h-3 text-red-500" />}
-                  <span className={`text-[10px] font-medium ${p.change >= 0 ? "text-green-600" : "text-red-500"}`}>{p.change > 0 ? "+" : ""}{p.change}%</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -200,29 +200,30 @@ export default function SocialAnalyticsPage() {
                   <th className="text-right py-3 px-2 text-xs font-semibold text-gray-500 uppercase">Impressions</th>
                   <th className="text-right py-3 px-2 text-xs font-semibold text-gray-500 uppercase">Engagement</th>
                   <th className="text-right py-3 px-2 text-xs font-semibold text-gray-500 uppercase">Clicks</th>
-                  <th className="text-right py-3 px-2 text-xs font-semibold text-gray-500 uppercase">Leads</th>
                 </tr>
               </thead>
               <tbody>
-                {topPosts.map((post) => (
-                  <tr key={post.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td className="py-3 px-2">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: platformColors[post.platform] }}>
-                        <PlatformIcon platform={post.platform} />
-                      </div>
-                    </td>
-                    <td className="py-3 px-2">
-                      <p className="text-sm text-gray-800 truncate max-w-[300px]">{post.content}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{post.date}</p>
-                    </td>
-                    <td className="py-3 px-2 text-right text-sm font-medium text-gray-800">{post.impressions.toLocaleString()}</td>
-                    <td className="py-3 px-2 text-right text-sm font-medium" style={{ color: "var(--color-secondary, #2A9D8F)" }}>{post.engagement}%</td>
-                    <td className="py-3 px-2 text-right text-sm font-medium text-gray-800">{post.clicks.toLocaleString()}</td>
-                    <td className="py-3 px-2 text-right">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">{post.leads}</span>
-                    </td>
-                  </tr>
-                ))}
+                {(summary?.topPosts ?? []).map((post) => {
+                  const postEng = post.impressions
+                    ? (((post.likes + post.comments + post.shares) / post.impressions) * 100).toFixed(1)
+                    : "0";
+                  return (
+                    <tr key={post.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="py-3 px-2">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: platformColors[post.platform] }}>
+                          <PlatformIcon platform={post.platform} />
+                        </div>
+                      </td>
+                      <td className="py-3 px-2">
+                        <p className="text-sm text-gray-800 truncate max-w-[300px]">{post.content}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{formatDate(post.publishedAt)}</p>
+                      </td>
+                      <td className="py-3 px-2 text-right text-sm font-medium text-gray-800">{post.impressions.toLocaleString()}</td>
+                      <td className="py-3 px-2 text-right text-sm font-medium" style={{ color: "var(--color-secondary, #2A9D8F)" }}>{postEng}%</td>
+                      <td className="py-3 px-2 text-right text-sm font-medium text-gray-400">&mdash;</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -232,21 +233,24 @@ export default function SocialAnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-primary, #1B3A5C)" }}>Monthly Trend</h2>
           <div className="space-y-3">
-            {monthlyData.map((m) => {
-              const maxImpressions = Math.max(...monthlyData.map((d) => d.impressions));
-              const barWidth = (m.impressions / maxImpressions) * 100;
+            {(trends ?? []).map((m) => {
+              const maxImpressions = Math.max(...(trends ?? []).map((d) => d.totalImpressions), 1);
+              const barWidth = (m.totalImpressions / maxImpressions) * 100;
+              const mEng = m.totalImpressions
+                ? (((m.totalLikes + m.totalComments + m.totalShares) / m.totalImpressions) * 100).toFixed(1)
+                : "0";
               return (
                 <div key={m.month} className="flex items-center gap-4">
-                  <span className="text-sm text-gray-600 font-medium w-20 flex-shrink-0">{m.month}</span>
+                  <span className="text-sm text-gray-600 font-medium w-20 flex-shrink-0">{formatMonth(m.month)}</span>
                   <div className="flex-1">
                     <div className="h-6 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-500" style={{ width: `${barWidth}%`, backgroundColor: "var(--color-secondary, #2A9D8F)" }} />
                     </div>
                   </div>
                   <div className="flex items-center gap-4 flex-shrink-0">
-                    <span className="text-sm font-medium text-gray-800 w-20 text-right">{(m.impressions / 1000).toFixed(0)}K imp.</span>
-                    <span className="text-sm font-medium w-16 text-right" style={{ color: "var(--color-secondary, #2A9D8F)" }}>{m.engagement}% eng.</span>
-                    <span className="text-sm font-medium text-amber-600 w-14 text-right">{m.leads} leads</span>
+                    <span className="text-sm font-medium text-gray-800 w-20 text-right">{(m.totalImpressions / 1000).toFixed(0)}K imp.</span>
+                    <span className="text-sm font-medium w-16 text-right" style={{ color: "var(--color-secondary, #2A9D8F)" }}>{mEng}% eng.</span>
+                    <span className="text-sm font-medium text-amber-600 w-14 text-right">{m.totalClicks.toLocaleString()} clicks</span>
                   </div>
                 </div>
               );
@@ -255,34 +259,39 @@ export default function SocialAnalyticsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Lead Attribution */}
+          {/* Platform Engagement (replaces Lead Attribution) */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-primary, #1B3A5C)" }}>Lead Attribution</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-primary, #1B3A5C)" }}>Platform Engagement</h2>
             <div className="space-y-3">
-              {leadAttribution.map((item) => (
-                <div key={item.source} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-semibold text-gray-800">{item.source}</span>
-                      <span className="text-xs text-gray-500">{item.contacts} contacts</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1">
-                        <UserPlus className="w-3.5 h-3.5 text-blue-500" />
-                        <span className="text-xs text-gray-600">{item.contacts} contacts</span>
+              {(summary?.byPlatform ?? []).map((item) => {
+                const engPct = item.impressions
+                  ? ((item.engagement / item.impressions) * 100).toFixed(1)
+                  : "0";
+                return (
+                  <div key={item.platform} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-gray-800">{platformNames[item.platform] ?? item.platform}</span>
+                        <span className="text-xs text-gray-500">{item.postCount} posts</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Target className="w-3.5 h-3.5 text-green-500" />
-                        <span className="text-xs text-gray-600">{item.deals} deals</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-xs text-gray-600">${(item.revenue / 1000).toFixed(0)}K</span>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          <Eye className="w-3.5 h-3.5 text-blue-500" />
+                          <span className="text-xs text-gray-600">{(item.impressions / 1000).toFixed(0)}K imp.</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="w-3.5 h-3.5 text-green-500" />
+                          <span className="text-xs text-gray-600">{engPct}% eng.</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MousePointerClick className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="text-xs text-gray-600">{item.engagement.toLocaleString()} interactions</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -292,28 +301,29 @@ export default function SocialAnalyticsPage() {
             <div className="space-y-4">
               <div className="p-4 rounded-lg" style={{ backgroundColor: "rgba(42,157,143,0.06)" }}>
                 <p className="text-sm text-gray-500 mb-1">Revenue from Social</p>
-                <p className="text-2xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>$120,000</p>
-                <p className="text-xs text-green-600 font-medium mt-1">+18% from last period</p>
+                <p className="text-2xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>
+                  ${parseFloat(roi?.revenueFromSocial ?? "0").toLocaleString()}
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-gray-50">
                   <p className="text-sm text-gray-500 mb-1">Cost per Lead</p>
-                  <p className="text-xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>$28.50</p>
-                  <p className="text-xs text-green-600 font-medium mt-1">-12% vs avg</p>
+                  <p className="text-xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>
+                    ${parseFloat(roi?.costPerLead ?? "0").toFixed(2)}
+                  </p>
                 </div>
                 <div className="p-4 rounded-lg bg-gray-50">
                   <p className="text-sm text-gray-500 mb-1">ROI Percentage</p>
-                  <p className="text-xl font-bold" style={{ color: "var(--color-secondary, #2A9D8F)" }}>342%</p>
-                  <p className="text-xs text-green-600 font-medium mt-1">+24% from last period</p>
+                  <p className="text-xl font-bold" style={{ color: "var(--color-secondary, #2A9D8F)" }}>
+                    {parseFloat(roi?.roiPercentage ?? "0").toFixed(0)}%
+                  </p>
                 </div>
               </div>
               <div className="p-4 rounded-lg bg-gray-50">
-                <p className="text-sm text-gray-500 mb-1">Total Ad Spend</p>
-                <p className="text-xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>$1,197</p>
+                <p className="text-sm text-gray-500 mb-1">Deals from Social</p>
+                <p className="text-xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{roi?.dealsFromSocial ?? 0}</p>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-xs text-gray-500">Facebook: $480</span>
-                  <span className="text-xs text-gray-500">Instagram: $420</span>
-                  <span className="text-xs text-gray-500">LinkedIn: $297</span>
+                  <span className="text-xs text-gray-500">{roi?.totalLeadsFromSocial ?? 0} leads total</span>
                 </div>
               </div>
             </div>

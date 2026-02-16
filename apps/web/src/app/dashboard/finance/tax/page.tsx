@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import {
   FileText,
   Download,
@@ -17,49 +19,65 @@ import {
   Receipt,
 } from 'lucide-react';
 
+// ------------------------------------------------------------------ //
+//  Types matching the /api/v1/reports/tax-prep response               //
+// ------------------------------------------------------------------ //
+
+interface Vendor1099 {
+  id: string;
+  vendorName: string;
+  taxId: string | null;
+  address: string | null;
+  ytd: string;
+}
+
+interface IncomeLine {
+  category: string;
+  total: string;
+}
+
+interface ExpenseLine {
+  irsCategory: string;
+  total: string;
+  count: number;
+}
+
+interface QuarterlyEstimate {
+  quarter: string;
+  revenue: string;
+}
+
+interface TaxPrepReport {
+  year: number;
+  vendors1099: Vendor1099[];
+  incomeSummary: IncomeLine[];
+  expenseSummary: ExpenseLine[];
+  quarterlyEstimates: QuarterlyEstimate[];
+}
+
+// ------------------------------------------------------------------ //
+//  Page component                                                      //
+// ------------------------------------------------------------------ //
 
 export default function TaxPreparationPage() {
   const [selectedYear, setSelectedYear] = useState('2025');
   const [cpaNotes, setCpaNotes] = useState('Review Q4 commission adjustments. Verify home office deduction calculations. Follow up on rental income classification for 123 Oak property.');
-  const [isLoading, setIsLoading] = useState(true);
 
-  const [vendors1099] = useState([
-    { name: 'Coastal Photography Co', type: 'Photography', ytdPayments: 67200, requires1099: true, ein: '**-***4567' },
-    { name: 'Premier Home Staging', type: 'Staging', ytdPayments: 54800, requires1099: true, ein: '**-***5678' },
-    { name: 'Blue Sky Inspections', type: 'Inspection', ytdPayments: 42100, requires1099: true, ein: '**-***6789' },
-    { name: 'Digital Marketing Pros', type: 'Marketing', ytdPayments: 48300, requires1099: true, ein: '**-***7890' },
-    { name: 'Cape Fear Title Services', type: 'Title', ytdPayments: 35200, requires1099: false, ein: '**-***8901' },
-  ]);
-
-  const [incomeSummary] = useState({
-    totalCommissions: 1247850,
-    referralFees: 34500,
-    otherIncome: 12750,
-    totalIncome: 1295100,
+  const { data, isLoading } = useQuery<TaxPrepReport>({
+    queryKey: ['reports', 'tax-prep', selectedYear],
+    queryFn: () => api<TaxPrepReport>(`/reports/tax-prep?year=${selectedYear}`),
   });
 
-  const [expensesByIRS] = useState([
-    { category: 'Advertising & Marketing', amount: 48300, irsLine: 'Schedule C, Line 8' },
-    { category: 'Car & Truck Expenses', amount: 18200, irsLine: 'Schedule C, Line 9' },
-    { category: 'Commissions & Fees', amount: 12400, irsLine: 'Schedule C, Line 10' },
-    { category: 'Contract Labor', amount: 164100, irsLine: 'Schedule C, Line 11' },
-    { category: 'Insurance (E&O)', amount: 28800, irsLine: 'Schedule C, Line 15' },
-    { category: 'Office Expense', amount: 15600, irsLine: 'Schedule C, Line 18' },
-    { category: 'Rent (Office)', amount: 36000, irsLine: 'Schedule C, Line 20b' },
-    { category: 'Utilities', amount: 8400, irsLine: 'Schedule C, Line 25' },
-    { category: 'Other Expenses', amount: 10350, irsLine: 'Schedule C, Line 27a' },
-  ]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  // Derived display values
+  const vendors = data?.vendors1099 ?? [];
+  const incomeLines = data?.incomeSummary ?? [];
+  const expenseLines = data?.expenseSummary ?? [];
+  const totalIncome = incomeLines.reduce((sum, l) => sum + parseFloat(l.total), 0);
+  const totalExpenses = expenseLines.reduce((sum, l) => sum + parseFloat(l.total), 0);
+  const total1099 = vendors.reduce((sum, v) => sum + parseFloat(v.ytd), 0);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
-
-  const totalExpenses = expensesByIRS.reduce((sum, e) => sum + e.amount, 0);
-  const total1099 = vendors1099.filter(v => v.requires1099).reduce((sum, v) => sum + v.ytdPayments, 0);
 
   if (isLoading) {
     return (<div className="flex items-center justify-center min-h-[60vh]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]"></div></div>);
@@ -104,32 +122,26 @@ export default function TaxPreparationPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vendor</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">EIN</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tax ID</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">YTD Payments</th>
                 <th className="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">1099 Required</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {vendors1099.map((vendor) => (
-                <tr key={vendor.name} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900">{vendor.name}</td>
-                  <td className="px-6 py-4"><span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">{vendor.type}</span></td>
-                  <td className="px-6 py-4 text-sm text-gray-500 font-mono">{vendor.ein}</td>
-                  <td className="px-6 py-4 text-right font-semibold text-gray-900">{formatCurrency(vendor.ytdPayments)}</td>
+              {vendors.map((vendor) => (
+                <tr key={vendor.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-gray-900">{vendor.vendorName}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 font-mono">{vendor.taxId ?? '\u2014'}</td>
+                  <td className="px-6 py-4 text-right font-semibold text-gray-900">{formatCurrency(parseFloat(vendor.ytd))}</td>
                   <td className="px-6 py-4 text-center">
-                    {vendor.requires1099 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><CheckCircle2 className="w-3.5 h-3.5" />Required</span>
-                    ) : (
-                      <span className="text-xs text-gray-400">N/A</span>
-                    )}
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700"><CheckCircle2 className="w-3.5 h-3.5" />Required</span>
                   </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 border-t-2 border-gray-300">
-                <td colSpan={3} className="px-6 py-3 font-bold text-gray-900">Total 1099 Payments</td>
+                <td colSpan={2} className="px-6 py-3 font-bold text-gray-900">Total 1099 Payments</td>
                 <td className="px-6 py-3 text-right font-bold text-gray-900">{formatCurrency(total1099)}</td>
                 <td></td>
               </tr>
@@ -148,21 +160,15 @@ export default function TaxPreparationPage() {
             </div>
           </div>
           <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Total Commissions</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(incomeSummary.totalCommissions)}</span>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Referral Fees</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(incomeSummary.referralFees)}</span>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Other Income</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(incomeSummary.otherIncome)}</span>
-            </div>
+            {incomeLines.map((line) => (
+              <div key={line.category} className="flex items-center justify-between py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-600">{line.category.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(parseFloat(line.total))}</span>
+              </div>
+            ))}
             <div className="flex items-center justify-between pt-2">
               <span className="font-bold text-gray-900">Total Gross Income</span>
-              <span className="text-xl font-bold text-green-600">{formatCurrency(incomeSummary.totalIncome)}</span>
+              <span className="text-xl font-bold text-green-600">{formatCurrency(totalIncome)}</span>
             </div>
           </div>
         </div>
@@ -176,13 +182,13 @@ export default function TaxPreparationPage() {
             </div>
           </div>
           <div className="p-6 space-y-3">
-            {expensesByIRS.map((exp) => (
-              <div key={exp.category} className="flex items-center justify-between py-2 border-b border-gray-50">
+            {expenseLines.map((exp) => (
+              <div key={exp.irsCategory} className="flex items-center justify-between py-2 border-b border-gray-50">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{exp.category}</p>
-                  <p className="text-xs text-gray-400">{exp.irsLine}</p>
+                  <p className="text-sm font-medium text-gray-900">{exp.irsCategory}</p>
+                  <p className="text-xs text-gray-400">{exp.count} transactions</p>
                 </div>
-                <span className="font-semibold text-gray-900">{formatCurrency(exp.amount)}</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(parseFloat(exp.total))}</span>
               </div>
             ))}
             <div className="flex items-center justify-between pt-3 border-t border-gray-200">
@@ -191,7 +197,7 @@ export default function TaxPreparationPage() {
             </div>
             <div className="flex items-center justify-between pt-2 bg-green-50 rounded-lg p-4 -mx-2">
               <span className="font-bold text-green-800">Net Taxable Income</span>
-              <span className="text-xl font-bold text-green-700">{formatCurrency(incomeSummary.totalIncome - totalExpenses)}</span>
+              <span className="text-xl font-bold text-green-700">{formatCurrency(totalIncome - totalExpenses)}</span>
             </div>
           </div>
         </div>

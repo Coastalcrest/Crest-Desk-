@@ -1,50 +1,81 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Image, Video, FolderOpen, Clock, TrendingUp, CheckCircle,
-  AlertCircle, ChevronRight, Heart, Sparkles, Film, Layout,
+  AlertCircle, ChevronRight, Sparkles, Film, Layout,
   ArrowRight, Play, Plus,
 } from 'lucide-react';
+import { api, apiPaginated } from '@/lib/api';
 
-type ProjectStatus = 'draft' | 'approved' | 'published';
-type MediaType = 'image' | 'video';
+// ------------------------------------------------------------------ //
+//  API response interfaces                                            //
+// ------------------------------------------------------------------ //
 
-interface RecentProject { id: string; title: string; thumbnail: string; type: MediaType; status: ProjectStatus; date: string; }
-interface TemplateCard { id: string; title: string; thumbnail: string; category: string; usageCount: number; }
-interface FavoriteAsset { id: string; title: string; thumbnail: string; type: MediaType; }
+interface MediaAsset {
+  id: string;
+  title: string;
+  assetType: string;
+  mediaType: string;
+  status: string;
+  thumbnailPath: string | null;
+  createdAt: string;
+}
 
-const statusColors = { draft: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700', published: 'bg-blue-100 text-blue-700' };
-const typeColors = { image: 'bg-purple-100 text-purple-700', video: 'bg-pink-100 text-pink-700' };
+interface MediaStats {
+  totalAssets: number;
+  imageCount: number;
+  videoCount: number;
+  publishedCount: number;
+  pendingComplianceCount: number;
+  generatedThisMonth: number;
+}
+
+interface Template {
+  id: string;
+  title: string;
+  category: string;
+  thumbnail: string | null;
+  usageCount: number;
+}
+
+// ------------------------------------------------------------------ //
+//  Style helpers                                                      //
+// ------------------------------------------------------------------ //
+
+const statusColors: Record<string, string> = {
+  draft: 'bg-yellow-100 text-yellow-700',
+  generating: 'bg-blue-100 text-blue-700',
+  approved: 'bg-green-100 text-green-700',
+  published: 'bg-blue-100 text-blue-700',
+  rejected: 'bg-red-100 text-red-700',
+};
+
+const typeColors: Record<string, string> = {
+  image: 'bg-purple-100 text-purple-700',
+  video: 'bg-pink-100 text-pink-700',
+};
+
+// ------------------------------------------------------------------ //
+//  Page component                                                     //
+// ------------------------------------------------------------------ //
+
 export default function MediaStudioDashboard() {
-  const [recentProjects, setRecentProjects] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [favorites, setFavorites] = useState([]);
-  const [stats, setStats] = useState({ imagesGenerated: 0, videosCreated: 0, published: 0, pendingReview: 0 });
-  useEffect(() => {
-    setRecentProjects([
-      { id: "1", title: "123 Oak Street - Just Listed", thumbnail: "/ph.jpg", type: "image", status: "published", date: "2026-02-14" },
-      { id: "2", title: "Market Update February", thumbnail: "/ph.jpg", type: "video", status: "approved", date: "2026-02-13" },
-      { id: "3", title: "456 Elm Ave - Virtual Staging", thumbnail: "/ph.jpg", type: "image", status: "draft", date: "2026-02-12" },
-      { id: "4", title: "Agent Introduction Video", thumbnail: "/ph.jpg", type: "video", status: "published", date: "2026-02-11" },
-      { id: "5", title: "789 Pine Rd - Under Contract", thumbnail: "/ph.jpg", type: "image", status: "approved", date: "2026-02-10" },
-      { id: "6", title: "Open House Promo Reel", thumbnail: "/ph.jpg", type: "video", status: "draft", date: "2026-02-09" },
-    ]);
-    setTemplates([
-      { id: "t1", title: "Just Listed", thumbnail: "/t.jpg", category: "Listing", usageCount: 1240 },
-      { id: "t2", title: "Under Contract", thumbnail: "/t.jpg", category: "Listing", usageCount: 870 },
-      { id: "t3", title: "Just Sold", thumbnail: "/t.jpg", category: "Listing", usageCount: 1055 },
-      { id: "t4", title: "Market Update", thumbnail: "/t.jpg", category: "Analytics", usageCount: 632 },
-      { id: "t5", title: "Social Post", thumbnail: "/t.jpg", category: "Social", usageCount: 1580 },
-    ]);
-    setFavorites([
-      { id: "f1", title: "Luxury Kitchen Shot", thumbnail: "/f.jpg", type: "image" },
-      { id: "f2", title: "Aerial Drone View", thumbnail: "/f.jpg", type: "image" },
-      { id: "f3", title: "Walkthrough Clip", thumbnail: "/f.jpg", type: "video" },
-      { id: "f4", title: "Backyard Staging", thumbnail: "/f.jpg", type: "image" },
-    ]);
-    setStats({ imagesGenerated: 47, videosCreated: 12, published: 34, pendingReview: 8 });
-  }, []);
+  const { data: recentData } = useQuery({
+    queryKey: ['media', 'recent'],
+    queryFn: () => apiPaginated<MediaAsset>('/media?page=1&limit=6&sortBy=newest'),
+  });
+  const recentProjects = recentData?.data ?? [];
+
+  const { data: stats } = useQuery({
+    queryKey: ['media', 'stats'],
+    queryFn: () => api<MediaStats>('/media/stats'),
+  });
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ['asset-library', 'templates'],
+    queryFn: () => api<Template[]>('/asset-library/templates'),
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -90,10 +121,10 @@ export default function MediaStudioDashboard() {
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { label: "Images Generated", value: stats.imagesGenerated, icon: Image, sublabel: "This month", change: "+12", color: "text-purple-600", bg: "bg-purple-50" },
-              { label: "Videos Created", value: stats.videosCreated, icon: Film, sublabel: "This month", change: "+4", color: "text-pink-600", bg: "bg-pink-50" },
-              { label: "Published", value: stats.published, icon: CheckCircle, sublabel: "This month", change: "+8", color: "text-green-600", bg: "bg-green-50" },
-              { label: "Pending Review", value: stats.pendingReview, icon: AlertCircle, sublabel: "Awaiting approval", change: "", color: "text-amber-600", bg: "bg-amber-50" },
+              { label: "Images Generated", value: stats?.imageCount ?? 0, icon: Image, sublabel: "This month", change: "+12", color: "text-purple-600", bg: "bg-purple-50" },
+              { label: "Videos Created", value: stats?.videoCount ?? 0, icon: Film, sublabel: "This month", change: "+4", color: "text-pink-600", bg: "bg-pink-50" },
+              { label: "Published", value: stats?.publishedCount ?? 0, icon: CheckCircle, sublabel: "This month", change: "+8", color: "text-green-600", bg: "bg-green-50" },
+              { label: "Pending Review", value: stats?.pendingComplianceCount ?? 0, icon: AlertCircle, sublabel: "Awaiting approval", change: "", color: "text-amber-600", bg: "bg-amber-50" },
             ].map((stat) => (
               <div key={stat.label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-4">
@@ -118,7 +149,7 @@ export default function MediaStudioDashboard() {
             {recentProjects.map((project) => (
               <div key={project.id} className="group bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer">
                 <div className="relative h-44 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
-                  {project.type === "video" ? (
+                  {project.assetType === "video" ? (
                     <div className="flex flex-col items-center gap-2 text-gray-400">
                       <div className="p-3 bg-white/80 rounded-full shadow"><Play className="w-6 h-6 fill-current" /></div>
                       <Film className="w-10 h-10" />
@@ -128,11 +159,11 @@ export default function MediaStudioDashboard() {
                 </div>
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeColors[project.type]}`}>{project.type}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[project.status]}`}>{project.status}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeColors[project.assetType] ?? 'bg-gray-100 text-gray-700'}`}>{project.assetType}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[project.status] ?? 'bg-gray-100 text-gray-700'}`}>{project.status}</span>
                   </div>
                   <h3 className="text-sm font-semibold text-gray-900 truncate">{project.title}</h3>
-                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(project.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(project.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
                 </div>
               </div>
             ))}
@@ -159,23 +190,6 @@ export default function MediaStudioDashboard() {
               </div>
             ))}
             <div className="flex-shrink-0 w-56 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[var(--color-secondary)] hover:bg-gray-100 transition-all min-h-[200px]"><Plus className="w-8 h-8 text-gray-400" /><span className="text-sm text-gray-500 font-medium">Create Custom</span></div>
-          </div>
-        </section>
-
-        {/* Favorites */}
-        <section className="pb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2"><Heart className="w-5 h-5 text-red-400" />Favorites</h2>
-            <button className="flex items-center gap-1 text-sm font-medium text-[var(--color-secondary)] hover:underline">View All <ChevronRight className="w-4 h-4" /></button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {favorites.map((fav) => (
-              <div key={fav.id} className="group relative bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all cursor-pointer">
-                <div className="h-28 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">{fav.type === "video" ? <Film className="w-8 h-8 text-gray-300" /> : <Image className="w-8 h-8 text-gray-300" />}</div>
-                <div className="p-3"><h4 className="text-xs font-semibold text-gray-800 truncate">{fav.title}</h4><span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${typeColors[fav.type]}`}>{fav.type}</span></div>
-                <button className="absolute top-2 right-2 p-1.5 bg-white/80 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"><Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" /></button>
-              </div>
-            ))}
           </div>
         </section>
       </div>

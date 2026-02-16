@@ -1,12 +1,44 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, apiPaginated } from "@/lib/api";
 import {
   Plus, Filter, Calendar, Target, BarChart3, ChevronDown, ChevronRight,
   Facebook, Instagram, Linkedin, Youtube, Music2, Twitter, Building2,
   CheckCircle2, Clock, Pause, FileText, X, Sparkles, Users,
-  TrendingUp, Eye, MousePointerClick,
+  TrendingUp, Eye, MousePointerClick, Loader2,
 } from "lucide-react";
+
+// ----- Types -----
+
+interface ApiCampaign {
+  id: string;
+  name: string;
+  description: string | null;
+  campaignType: string;
+  platforms: string[];
+  startDate: string | null;
+  endDate: string | null;
+  status: string;
+  isEvergreen: boolean;
+  contentStrategy: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CampaignDetail extends ApiCampaign {
+  postSummary?: {
+    totalPosts: number;
+    publishedPosts: number;
+    scheduledPosts: number;
+    draftPosts: number;
+    totalImpressions: number;
+    totalEngagement: number;
+  };
+}
+
+// ----- Constants -----
 
 const platformColors: Record<string, string> = {
   facebook: "#1877F2", instagram: "#E4405F", linkedin: "#0A66C2",
@@ -23,22 +55,25 @@ const PlatformIcon = ({ platform }: { platform: string }) => {
   return <>{icons[platform] || null}</>;
 };
 
-interface Campaign {
-  id: string;
-  name: string;
-  type: string;
-  platforms: string[];
-  startDate: string;
-  endDate: string;
-  status: "draft" | "active" | "completed" | "paused";
-  postCount: number;
-  impressions: number;
-  engagement: number;
-  evergreen: boolean;
-  posts: { title: string; platform: string; date: string; status: string }[];
-}
+const formatCampaignType = (campaignType: string): string =>
+  campaignType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+const formatDate = (dateStr: string | null): string => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const formatNumber = (n: number): string => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+};
+
+// ----- Page Component -----
 
 export default function CampaignsPage() {
+  const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -48,70 +83,48 @@ export default function CampaignsPage() {
     startDate: "2026-02-17", endDate: "2026-03-17", evergreen: false, notes: "",
   });
 
-  const [campaigns] = useState<Campaign[]>([
-    {
-      id: "1", name: "Spring Listings Launch", type: "Listing Launch",
-      platforms: ["facebook", "instagram", "tiktok"], startDate: "Feb 1, 2026",
-      endDate: "Mar 31, 2026", status: "active", postCount: 24, impressions: 89400,
-      engagement: 5.2, evergreen: false,
-      posts: [
-        { title: "New Listing: 742 Evergreen Terrace", platform: "instagram", date: "Feb 3", status: "published" },
-        { title: "Virtual Tour Teaser", platform: "tiktok", date: "Feb 5", status: "published" },
-        { title: "Open House Announcement", platform: "facebook", date: "Feb 7", status: "published" },
-        { title: "Price Reduction Alert", platform: "instagram", date: "Feb 14", status: "scheduled" },
-        { title: "Neighborhood Spotlight", platform: "facebook", date: "Feb 17", status: "draft" },
-      ],
+  // --- Fetch campaign list ---
+  const { data: campaignData, isLoading, isError } = useQuery({
+    queryKey: ["social-campaigns", filterStatus, filterType],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: "50" });
+      if (filterStatus !== "all") params.set("status", filterStatus);
+      if (filterType !== "all") params.set("campaignType", filterType);
+      return apiPaginated<ApiCampaign>(`/social-analytics/campaigns?${params}`);
     },
-    {
-      id: "2", name: "Agent Sarah - Personal Brand", type: "Brand Awareness",
-      platforms: ["instagram", "linkedin", "x"], startDate: "Jan 15, 2026",
-      endDate: "Ongoing", status: "active", postCount: 18, impressions: 45200,
-      engagement: 4.8, evergreen: true,
-      posts: [
-        { title: "Monday Motivation", platform: "instagram", date: "Feb 10", status: "published" },
-        { title: "Market Insights Thread", platform: "x", date: "Feb 12", status: "published" },
-        { title: "Client Success Story", platform: "linkedin", date: "Feb 14", status: "scheduled" },
-      ],
-    },
-    {
-      id: "3", name: "Valentine Open House Weekend", type: "Event Promotion",
-      platforms: ["facebook", "instagram"], startDate: "Feb 10, 2026",
-      endDate: "Feb 16, 2026", status: "completed", postCount: 8, impressions: 32100,
-      engagement: 6.1, evergreen: false,
-      posts: [
-        { title: "Save the Date", platform: "facebook", date: "Feb 10", status: "published" },
-        { title: "Countdown: 3 Days", platform: "instagram", date: "Feb 11", status: "published" },
-        { title: "Event Day Reminder", platform: "facebook", date: "Feb 14", status: "published" },
-      ],
-    },
-    {
-      id: "4", name: "Q1 Market Report Series", type: "Content Series",
-      platforms: ["linkedin", "facebook", "youtube"], startDate: "Mar 1, 2026",
-      endDate: "Mar 31, 2026", status: "draft", postCount: 0, impressions: 0,
-      engagement: 0, evergreen: false,
-      posts: [],
-    },
-    {
-      id: "5", name: "Luxury Collection Showcase", type: "Listing Launch",
-      platforms: ["instagram", "facebook", "youtube"], startDate: "Feb 1, 2026",
-      endDate: "Feb 28, 2026", status: "paused", postCount: 6, impressions: 18700,
-      engagement: 3.9, evergreen: false,
-      posts: [
-        { title: "Luxury Home Tour", platform: "youtube", date: "Feb 3", status: "published" },
-        { title: "Interior Design Details", platform: "instagram", date: "Feb 5", status: "published" },
-      ],
-    },
-  ]);
-
-  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
-  const totalPosts = campaigns.reduce((sum, c) => sum + c.postCount, 0);
-  const scheduledThisWeek = 7;
-
-  const filteredCampaigns = campaigns.filter((c) => {
-    if (filterStatus !== "all" && c.status !== filterStatus) return false;
-    if (filterType !== "all" && c.type !== filterType) return false;
-    return true;
   });
+  const campaigns = campaignData?.data ?? [];
+
+  // --- Fetch expanded campaign detail (with postSummary) ---
+  const { data: expandedDetail } = useQuery<CampaignDetail>({
+    queryKey: ["social-campaign-detail", expandedCampaign],
+    queryFn: () => api<CampaignDetail>(`/social-analytics/campaigns/${expandedCampaign}`),
+    enabled: !!expandedCampaign,
+  });
+
+  // --- Create mutation ---
+  const createMutation = useMutation({
+    mutationFn: (body: {
+      name: string;
+      campaignType: string;
+      platforms: string[];
+      startDate: string;
+      endDate: string;
+      isEvergreen: boolean;
+      contentStrategy: Record<string, unknown>;
+    }) => api("/social-analytics/campaigns", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["social-campaigns"] });
+      setShowCreateModal(false);
+      setNewCampaign({
+        name: "", type: "listing_launch", platforms: ["facebook", "instagram"],
+        startDate: "2026-02-17", endDate: "2026-03-17", evergreen: false, notes: "",
+      });
+    },
+  });
+
+  // --- Derived stats ---
+  const activeCampaigns = campaigns.filter((c) => c.status === "active").length;
 
   const statusBadge = (status: string) => {
     const styles: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
@@ -126,6 +139,14 @@ export default function CampaignsPage() {
         {s.icon} {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
+  };
+
+  // Compute engagement rate for a campaign from the detail endpoint
+  const engagementRate = (detail: CampaignDetail | undefined): number | null => {
+    if (!detail?.postSummary) return null;
+    const { totalImpressions, totalEngagement } = detail.postSummary;
+    if (totalImpressions === 0) return 0;
+    return parseFloat(((totalEngagement / totalImpressions) * 100).toFixed(1));
   };
 
   return (
@@ -156,21 +177,21 @@ export default function CampaignsPage() {
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500 font-medium">Total Posts</span>
+              <span className="text-sm text-gray-500 font-medium">Total Campaigns</span>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: "rgba(27,58,92,0.08)" }}>
                 <BarChart3 className="w-5 h-5" style={{ color: "var(--color-primary, #1B3A5C)" }} />
               </div>
             </div>
-            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{totalPosts}</p>
+            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{campaignData?.pagination.total ?? "—"}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-gray-500 font-medium">Scheduled This Week</span>
+              <span className="text-sm text-gray-500 font-medium">Draft Campaigns</span>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-50">
                 <Clock className="w-5 h-5 text-purple-600" />
               </div>
             </div>
-            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{scheduledThisWeek}</p>
+            <p className="text-3xl font-bold" style={{ color: "var(--color-primary, #1B3A5C)" }}>{campaigns.filter((c) => c.status === "draft").length}</p>
           </div>
         </div>
 
@@ -187,81 +208,134 @@ export default function CampaignsPage() {
           <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white text-gray-700">
             <option value="all">All Types</option>
-            <option value="Listing Launch">Listing Launch</option>
-            <option value="Brand Awareness">Brand Awareness</option>
-            <option value="Event Promotion">Event Promotion</option>
-            <option value="Content Series">Content Series</option>
+            <option value="listing_launch">Listing Launch</option>
+            <option value="brand_awareness">Brand Awareness</option>
+            <option value="event_promotion">Event Promotion</option>
+            <option value="content_series">Content Series</option>
           </select>
         </div>
 
-        {/* Campaign List */}
-        <div className="space-y-4">
-          {filteredCampaigns.map((campaign) => (
-            <div key={campaign.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 cursor-pointer hover:bg-gray-50/50 transition-colors" onClick={() => setExpandedCampaign(expandedCampaign === campaign.id ? null : campaign.id)}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      {expandedCampaign === campaign.id ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-base font-semibold text-gray-900">{campaign.name}</h3>
-                        {statusBadge(campaign.status)}
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{campaign.type}</span>
-                        {campaign.evergreen && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"><Sparkles className="w-3 h-3 inline mr-0.5" />Evergreen</span>}
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-500">
-                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {campaign.startDate} - {campaign.endDate}</span>
-                        <span>{campaign.postCount} posts</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-1.5">
-                      {campaign.platforms.map((p) => (
-                        <div key={p} className="w-6 h-6 rounded flex items-center justify-center text-white" style={{ backgroundColor: platformColors[p] }}>
-                          <PlatformIcon platform={p} />
-                        </div>
-                      ))}
-                    </div>
-                    {campaign.impressions > 0 && (
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <Eye className="w-3.5 h-3.5" /> {(campaign.impressions / 1000).toFixed(1)}K
-                        </div>
-                        <div className="flex items-center gap-1" style={{ color: "var(--color-secondary, #2A9D8F)" }}>
-                          <TrendingUp className="w-3.5 h-3.5" /> {campaign.engagement}%
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+        {/* Loading / Error States */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <span className="ml-2 text-sm text-gray-500">Loading campaigns...</span>
+          </div>
+        )}
+        {isError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+            <p className="text-sm text-red-700">Failed to load campaigns. Please try again later.</p>
+          </div>
+        )}
 
-              {/* Expanded Posts Timeline */}
-              {expandedCampaign === campaign.id && campaign.posts.length > 0 && (
-                <div className="border-t border-gray-100 p-6 bg-gray-50/50">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Campaign Posts</h4>
-                  <div className="space-y-2">
-                    {campaign.posts.map((post, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
-                        <div className="w-6 h-6 rounded flex items-center justify-center text-white" style={{ backgroundColor: platformColors[post.platform] }}>
-                          <PlatformIcon platform={post.platform} />
+        {/* Campaign List */}
+        {!isLoading && !isError && (
+          <div className="space-y-4">
+            {campaigns.length === 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+                <Target className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No campaigns found. Create your first campaign to get started.</p>
+              </div>
+            )}
+            {campaigns.map((campaign) => {
+              const isExpanded = expandedCampaign === campaign.id;
+              const detail = isExpanded && expandedDetail?.id === campaign.id ? expandedDetail : undefined;
+              const engagement = engagementRate(detail);
+              return (
+                <div key={campaign.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-6 cursor-pointer hover:bg-gray-50/50 transition-colors" onClick={() => setExpandedCampaign(isExpanded ? null : campaign.id)}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                         </div>
-                        <span className="text-sm text-gray-800 flex-1">{post.title}</span>
-                        <span className="text-xs text-gray-500">{post.date}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${post.status === "published" ? "bg-green-50 text-green-700" : post.status === "scheduled" ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
-                          {post.status}
-                        </span>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-base font-semibold text-gray-900">{campaign.name}</h3>
+                            {statusBadge(campaign.status)}
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">{formatCampaignType(campaign.campaignType)}</span>
+                            {campaign.isEvergreen && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"><Sparkles className="w-3 h-3 inline mr-0.5" />Evergreen</span>}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> {formatDate(campaign.startDate)} - {campaign.isEvergreen ? "Ongoing" : formatDate(campaign.endDate)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-1.5">
+                          {campaign.platforms.map((p) => (
+                            <div key={p} className="w-6 h-6 rounded flex items-center justify-center text-white" style={{ backgroundColor: platformColors[p] }}>
+                              <PlatformIcon platform={p} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Expanded Detail */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100 p-6 bg-gray-50/50">
+                      {detail?.postSummary ? (
+                        <>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Campaign Performance</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="bg-white rounded-lg border border-gray-100 p-4">
+                              <p className="text-xs text-gray-500 mb-1">Total Posts</p>
+                              <p className="text-xl font-bold text-gray-900">{detail.postSummary.totalPosts}</p>
+                            </div>
+                            <div className="bg-white rounded-lg border border-gray-100 p-4">
+                              <p className="text-xs text-gray-500 mb-1">Published</p>
+                              <p className="text-xl font-bold text-green-700">{detail.postSummary.publishedPosts}</p>
+                            </div>
+                            <div className="bg-white rounded-lg border border-gray-100 p-4">
+                              <p className="text-xs text-gray-500 mb-1">Scheduled</p>
+                              <p className="text-xl font-bold text-blue-700">{detail.postSummary.scheduledPosts}</p>
+                            </div>
+                            <div className="bg-white rounded-lg border border-gray-100 p-4">
+                              <p className="text-xs text-gray-500 mb-1">Drafts</p>
+                              <p className="text-xl font-bold text-gray-600">{detail.postSummary.draftPosts}</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-100 p-4">
+                              <Eye className="w-4 h-4 text-gray-400" />
+                              <div>
+                                <p className="text-xs text-gray-500">Impressions</p>
+                                <p className="text-lg font-bold text-gray-900">{formatNumber(detail.postSummary.totalImpressions)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-100 p-4">
+                              <MousePointerClick className="w-4 h-4 text-gray-400" />
+                              <div>
+                                <p className="text-xs text-gray-500">Engagement</p>
+                                <p className="text-lg font-bold text-gray-900">{formatNumber(detail.postSummary.totalEngagement)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-100 p-4">
+                              <TrendingUp className="w-4 h-4" style={{ color: "var(--color-secondary, #2A9D8F)" }} />
+                              <div>
+                                <p className="text-xs text-gray-500">Engagement Rate</p>
+                                <p className="text-lg font-bold" style={{ color: "var(--color-secondary, #2A9D8F)" }}>{engagement !== null ? `${engagement}%` : "—"}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-center py-6">
+                          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                          <span className="ml-2 text-sm text-gray-500">Loading campaign details...</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Create Campaign Modal */}
         {showCreateModal && (
@@ -311,27 +385,48 @@ export default function CampaignsPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
                     <input type="date" value={newCampaign.endDate} onChange={(e) => setNewCampaign({ ...newCampaign, endDate: e.target.value })}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                      disabled={newCampaign.evergreen} />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={newCampaign.evergreen} onChange={(e) => setNewCampaign({ ...newCampaign, evergreen: e.target.checked })} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[\x27\x27] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
                   </label>
                   <span className="text-sm text-gray-700">Evergreen Campaign (no end date)</span>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Content Strategy Notes</label>
-                  <textarea rows={3} placeholder="Describe the campaign strategy, target audience, key messages..."
+                  <textarea rows={3} value={newCampaign.notes} onChange={(e) => setNewCampaign({ ...newCampaign, notes: e.target.value })}
+                    placeholder="Describe the campaign strategy, target audience, key messages..."
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none resize-none" />
                 </div>
               </div>
               <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-100">
                 <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button onClick={() => setShowCreateModal(false)} className="px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90"
-                  style={{ backgroundColor: "var(--color-secondary, #2A9D8F)" }}>Create Campaign</button>
+                <button
+                  disabled={!newCampaign.name.trim() || createMutation.isPending}
+                  onClick={() => createMutation.mutate({
+                    name: newCampaign.name.trim(),
+                    campaignType: newCampaign.type,
+                    platforms: newCampaign.platforms,
+                    startDate: newCampaign.startDate,
+                    endDate: newCampaign.evergreen ? "" : newCampaign.endDate,
+                    isEvergreen: newCampaign.evergreen,
+                    contentStrategy: newCampaign.notes ? { notes: newCampaign.notes } : {},
+                  })}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: "var(--color-secondary, #2A9D8F)" }}>
+                  {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Create Campaign
+                </button>
               </div>
+              {createMutation.isError && (
+                <div className="px-6 pb-4">
+                  <p className="text-sm text-red-600">Failed to create campaign. Please try again.</p>
+                </div>
+              )}
             </div>
           </div>
         )}

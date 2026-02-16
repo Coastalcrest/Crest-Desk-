@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   DollarSign,
   TrendingUp,
@@ -15,7 +16,19 @@ import {
   Download,
   Calendar,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
+interface PLReport {
+  totalRevenue: string;
+  totalExpenses: string;
+  grossProfit: string;
+  profitMargin: string;
+  commissionCount: number;
+  monthlyTrend: {
+    revenue: { month: string; revenue: string }[];
+    expenses: { month: string; expenses: string }[];
+  };
+}
 
 interface MonthlyPL {
   month: string;
@@ -28,38 +41,26 @@ interface MonthlyPL {
 export default function PLByOfficePage() {
   const [selectedOffice, setSelectedOffice] = useState('main');
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [isLoading, setIsLoading] = useState(true);
 
-  const [summary] = useState({
-    totalRevenue: 1247850,
-    totalExpenses: 342150,
-    grossProfit: 905700,
-    netProfit: 748200,
-    profitMargin: 59.9,
-    revenueChange: 12.5,
-    expenseChange: 8.1,
-    profitChange: 15.2,
+  const { data, isLoading } = useQuery<PLReport>({
+    queryKey: ['reports', 'pl-by-office'],
+    queryFn: () => api<PLReport>('/reports/pl-by-office'),
   });
 
-  const [monthlyData] = useState([
-    { month: 'January', revenue: 142300, expenses: 38750, grossProfit: 103550, netProfit: 87200 },
-    { month: 'February', revenue: 0, expenses: 0, grossProfit: 0, netProfit: 0 },
-    { month: 'March', revenue: 0, expenses: 0, grossProfit: 0, netProfit: 0 },
-    { month: 'April', revenue: 0, expenses: 0, grossProfit: 0, netProfit: 0 },
-    { month: 'May', revenue: 0, expenses: 0, grossProfit: 0, netProfit: 0 },
-    { month: 'June', revenue: 0, expenses: 0, grossProfit: 0, netProfit: 0 },
-    { month: 'July', revenue: 0, expenses: 0, grossProfit: 0, netProfit: 0 },
-    { month: 'August', revenue: 198400, expenses: 48200, grossProfit: 150200, netProfit: 128400 },
-    { month: 'September', revenue: 215700, expenses: 52300, grossProfit: 163400, netProfit: 138900 },
-    { month: 'October', revenue: 187300, expenses: 45800, grossProfit: 141500, netProfit: 118700 },
-    { month: 'November', revenue: 203500, expenses: 49600, grossProfit: 153900, netProfit: 131200 },
-    { month: 'December', revenue: 178900, expenses: 43500, grossProfit: 135400, netProfit: 112800 },
-  ]);
+  const totalRevenue = parseFloat(data?.totalRevenue ?? '0');
+  const totalExpenses = parseFloat(data?.totalExpenses ?? '0');
+  const grossProfit = totalRevenue - totalExpenses;
+  const netProfit = grossProfit; // P&L report has no separate net vs gross distinction
+  const profitMargin = parseFloat(data?.profitMargin ?? '0');
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthlyData: MonthlyPL[] = monthNames.map((name, i) => {
+    const mm = String(i + 1).padStart(2, '0');
+    const yearMonth = `${selectedYear}-${mm}`;
+    const rev = parseFloat(data?.monthlyTrend?.revenue?.find(r => r.month === yearMonth)?.revenue ?? '0');
+    const exp = parseFloat(data?.monthlyTrend?.expenses?.find(e => e.month === yearMonth)?.expenses ?? '0');
+    return { month: name, revenue: rev, expenses: exp, grossProfit: rev - exp, netProfit: rev - exp };
+  });
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(val);
@@ -108,32 +109,32 @@ export default function PLByOfficePage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="p-2 rounded-lg bg-blue-50"><DollarSign className="w-5 h-5 text-[var(--color-primary)]" /></div>
-            <span className="flex items-center gap-1 text-xs font-medium text-green-600"><ArrowUpRight className="w-3.5 h-3.5" />{summary.revenueChange}%%</span>
+            <span className="text-xs font-medium text-gray-400">--</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalRevenue)}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
           <p className="text-sm text-gray-500 mt-1">Total Revenue</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="p-2 rounded-lg bg-red-50"><TrendingDown className="w-5 h-5 text-red-600" /></div>
-            <span className="flex items-center gap-1 text-xs font-medium text-red-600"><ArrowUpRight className="w-3.5 h-3.5" />{summary.expenseChange}%%</span>
+            <span className="text-xs font-medium text-gray-400">--</span>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalExpenses)}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalExpenses)}</p>
           <p className="text-sm text-gray-500 mt-1">Total Expenses</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="p-2 rounded-lg bg-emerald-50"><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
-            <span className="flex items-center gap-1 text-xs font-medium text-green-600"><ArrowUpRight className="w-3.5 h-3.5" />{summary.profitChange}%%</span>
+            <span className="text-xs font-medium text-gray-400">--</span>
           </div>
-          <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.netProfit)}</p>
+          <p className="text-2xl font-bold text-green-600">{formatCurrency(netProfit)}</p>
           <p className="text-sm text-gray-500 mt-1">Net Profit</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="p-2 rounded-lg bg-purple-50"><Percent className="w-5 h-5 text-purple-600" /></div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{summary.profitMargin}%%</p>
+          <p className="text-2xl font-bold text-gray-900">{profitMargin}%</p>
           <p className="text-sm text-gray-500 mt-1">Profit Margin</p>
         </div>
       </div>
@@ -145,28 +146,28 @@ export default function PLByOfficePage() {
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-600">Revenue</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(summary.totalRevenue)}</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(totalRevenue)}</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-4">
-              <div className="h-4 rounded-full bg-[var(--color-secondary)] transition-all duration-500" style={{ width: "100%%" }}></div>
+              <div className="h-4 rounded-full bg-[var(--color-secondary)] transition-all duration-500" style={{ width: "100%" }}></div>
             </div>
           </div>
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-600">Expenses</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(summary.totalExpenses)}</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(totalExpenses)}</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-4">
-              <div className="h-4 rounded-full bg-red-400 transition-all duration-500" style={{ width: `${(summary.totalExpenses / summary.totalRevenue * 100).toFixed(0)}%%` }}></div>
+              <div className="h-4 rounded-full bg-red-400 transition-all duration-500" style={{ width: `${totalRevenue > 0 ? (totalExpenses / totalRevenue * 100).toFixed(0) : 0}%` }}></div>
             </div>
           </div>
           <div>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-600">Net Profit</span>
-              <span className="font-semibold text-green-600">{formatCurrency(summary.netProfit)}</span>
+              <span className="font-semibold text-green-600">{formatCurrency(netProfit)}</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-4">
-              <div className="h-4 rounded-full bg-green-500 transition-all duration-500" style={{ width: `${(summary.netProfit / summary.totalRevenue * 100).toFixed(0)}%%` }}></div>
+              <div className="h-4 rounded-full bg-green-500 transition-all duration-500" style={{ width: `${totalRevenue > 0 ? (netProfit / totalRevenue * 100).toFixed(0) : 0}%` }}></div>
             </div>
           </div>
         </div>
@@ -205,10 +206,10 @@ export default function PLByOfficePage() {
             <tfoot>
               <tr className="bg-gray-50 border-t-2 border-gray-300">
                 <td className="px-6 py-4 font-bold text-gray-900">Total</td>
-                <td className="px-6 py-4 text-right font-bold text-gray-900">{formatCurrency(summary.totalRevenue)}</td>
-                <td className="px-6 py-4 text-right font-bold text-red-600">{formatCurrency(summary.totalExpenses)}</td>
-                <td className="px-6 py-4 text-right font-bold text-gray-900">{formatCurrency(summary.grossProfit)}</td>
-                <td className="px-6 py-4 text-right font-bold text-green-600">{formatCurrency(summary.netProfit)}</td>
+                <td className="px-6 py-4 text-right font-bold text-gray-900">{formatCurrency(totalRevenue)}</td>
+                <td className="px-6 py-4 text-right font-bold text-red-600">{formatCurrency(totalExpenses)}</td>
+                <td className="px-6 py-4 text-right font-bold text-gray-900">{formatCurrency(grossProfit)}</td>
+                <td className="px-6 py-4 text-right font-bold text-green-600">{formatCurrency(netProfit)}</td>
               </tr>
             </tfoot>
           </table>
