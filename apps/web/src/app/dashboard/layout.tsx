@@ -7,6 +7,7 @@ import { Header } from '@/components/dashboard/header';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
+import { AiChatPanel } from '@/components/dashboard/ai-chat-panel';
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed';
 
@@ -82,6 +83,7 @@ export default function DashboardLayout({
           />
           <main className="flex-1 overflow-y-auto p-4 lg:p-6">
             {children}
+            <AiChatPanel />
           </main>
         </div>
       </div>

@@ -41,6 +41,10 @@ import socialPostsRoutes from './routes/social-posts';
 import socialAnalyticsRoutes from './routes/social-analytics';
 import emailInboxRoutes from './routes/email-inbox';
 import emailSettingsRoutes from './routes/email-settings';
+import aiCopilotRoutes from './routes/ai-copilot';
+import aiAssistRoutes from './routes/ai-assist';
+import supportTicketsRoutes from './routes/support-tickets';
+import searchRoutes from './routes/search';
 
 const app = express();
 
@@ -106,6 +110,10 @@ app.use('/api/v1/social-posts', socialPostsRoutes);
 app.use('/api/v1/social-analytics', socialAnalyticsRoutes);
 app.use('/api/v1/email-inbox', emailInboxRoutes);
 app.use('/api/v1/email-settings', emailSettingsRoutes);
+app.use('/api/v1/ai-copilot', aiCopilotRoutes);
+app.use('/api/v1/ai-assist', aiAssistRoutes);
+app.use('/api/v1/support-tickets', supportTicketsRoutes);
+app.use('/api/v1/search', searchRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

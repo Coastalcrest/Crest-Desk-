@@ -24,6 +24,8 @@ import {
   DollarSign,
   Wand2,
   Mail,
+  Bot,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -64,6 +66,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Finance', href: '/dashboard/finance', icon: DollarSign },
   { label: 'Media Studio', href: '/dashboard/media', icon: Wand2 },
   { label: 'Email', href: '/dashboard/email', icon: Mail },
+  { label: 'CrestAI', href: '/dashboard/ai', icon: Bot },
   { label: '', href: '', icon: null, separator: true },
   { label: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
   { label: 'Social Media', href: '/dashboard/social', icon: Share2 },
@@ -94,6 +97,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   { label: '', href: '', icon: null, separator: true },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { label: 'Help', href: '/dashboard/help', icon: HelpCircle },
 ];
 
 // ---------------------------------------------------------------------------
