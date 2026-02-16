@@ -48,6 +48,12 @@ import searchRoutes from './routes/search';
 import securityEventsRoutes from './routes/security-events';
 import securitySettingsRoutes from './routes/security-settings';
 import breachManagementRoutes from './routes/breach-management';
+import apiKeysRoutes from './routes/api-keys';
+import webhooksRoutes from './routes/webhooks';
+import subscriptionsRoutes from './routes/subscriptions';
+import whiteLabelRoutes from './routes/white-label';
+import sdkConfigRoutes from './routes/sdk-config';
+import onboardingRoutes from './routes/onboarding';
 
 const app = express();
 
@@ -120,6 +126,12 @@ app.use('/api/v1/search', searchRoutes);
 app.use('/api/v1/security', securityEventsRoutes);
 app.use('/api/v1/security-settings', securitySettingsRoutes);
 app.use('/api/v1/breach', breachManagementRoutes);
+app.use('/api/v1/api-keys', apiKeysRoutes);
+app.use('/api/v1/webhooks', webhooksRoutes);
+app.use('/api/v1/subscriptions', subscriptionsRoutes);
+app.use('/api/v1/white-label', whiteLabelRoutes);
+app.use('/api/v1/sdk', sdkConfigRoutes);
+app.use('/api/v1/onboarding', onboardingRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

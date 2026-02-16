@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, Shield, ShieldCheck, Bell, Link2, Palette, Users, Scale } from 'lucide-react';
+import { User, Shield, ShieldCheck, Bell, Link2, Palette, Users, Scale, Code2 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { useAuthStore } from '../../../stores/auth-store';
 
@@ -34,6 +34,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       : []),
     ...(userLevel >= 2
       ? [{ label: 'Security', href: '/dashboard/settings/security', icon: ShieldCheck }]
+      : []),
+    ...(userLevel >= 3
+      ? [{ label: 'Developer', href: '/dashboard/settings/developer', icon: Code2 }]
       : []),
   ];
 

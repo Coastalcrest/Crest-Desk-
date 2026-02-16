@@ -109,6 +109,8 @@ export function getDefaultPermissions(role: string): string[] {
     'security:events:read',
     'security:settings:read',
     'security:breach:read',
+    'developer:usage:read',
+    'saas:subscription:read',
     'settings:users:invite',
     'settings:users:roles',
     'settings:compliance:manage',
@@ -140,6 +142,14 @@ export function getDefaultPermissions(role: string): string[] {
     'security:policies:manage',
     'security:breach:manage',
     'security:ip_allowlist:manage',
+    'developer:api_keys:manage',
+    'developer:webhooks:manage',
+    'developer:webhooks:read',
+    'saas:white_label:manage',
+    'saas:sdk:manage',
+    'saas:onboarding:manage',
+    'saas:subscription:manage',
+    'saas:billing:manage',
   ];
 }
 

@@ -66,3 +66,11 @@ export { securityPolicies } from '../../../../packages/db/src/schema/security-po
 export { breachNotificationRules } from '../../../../packages/db/src/schema/breach-notification-rules';
 export { breachIncidents } from '../../../../packages/db/src/schema/breach-incidents';
 export { breachNotifications } from '../../../../packages/db/src/schema/breach-notifications';
+export { apiKeys } from '../../../../packages/db/src/schema/api-keys';
+export { webhookEndpoints } from '../../../../packages/db/src/schema/webhook-endpoints';
+export { webhookDeliveries } from '../../../../packages/db/src/schema/webhook-deliveries';
+export { subscriptionPlans } from '../../../../packages/db/src/schema/subscription-plans';
+export { subscriptionUsage } from '../../../../packages/db/src/schema/subscription-usage';
+export { whiteLabelConfigs } from '../../../../packages/db/src/schema/white-label-configs';
+export { sdkConfigurations } from '../../../../packages/db/src/schema/sdk-configurations';
+export { tenantOnboarding } from '../../../../packages/db/src/schema/tenant-onboarding';
