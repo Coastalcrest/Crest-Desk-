@@ -5,6 +5,7 @@ import * as schema from "../lib/schema";
 import { requireAuth } from "../middleware/auth";
 import { requireRole } from "../lib/permissions";
 import { logAudit } from "../lib/audit";
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -165,7 +166,7 @@ router.get("/", async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error("List commissions error:", err);
+    logger.error({ err, tenantId, userId }, 'List commissions error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list commissions" } });
   }
 });
@@ -234,7 +235,7 @@ router.get("/stats", async (req: Request, res: Response) => {
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error("Commission stats error:", err);
+    logger.error({ err, tenantId }, 'Commission stats error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get commission stats" } });
   }
 });
@@ -291,7 +292,7 @@ router.get("/pending", async (req: Request, res: Response) => {
 
     return res.json({ data: pendingIncome });
   } catch (err) {
-    console.error("Pending income error:", err);
+    logger.error({ err, tenantId }, 'Pending income error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get pending income" } });
   }
 });
@@ -341,7 +342,7 @@ router.get("/structures", async (req: Request, res: Response) => {
 
     return res.json({ data: structures });
   } catch (err) {
-    console.error("List commission structures error:", err);
+    logger.error({ err, tenantId }, 'List commission structures error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list commission structures" } });
   }
 });
@@ -425,7 +426,7 @@ router.post("/structures", requireRole("managing_broker"), async (req: Request, 
 
     return res.status(201).json({ data: result.structure });
   } catch (err) {
-    console.error("Create commission structure error:", err);
+    logger.error({ err, tenantId, userId }, 'Create commission structure error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create commission structure" } });
   }
 });
@@ -497,7 +498,7 @@ router.patch("/structures/:id", requireRole("managing_broker"), async (req: Requ
 
     return res.json({ data: structure });
   } catch (err) {
-    console.error("Update commission structure error:", err);
+    logger.error({ err, tenantId, userId }, 'Update commission structure error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update commission structure" } });
   }
 });
@@ -623,7 +624,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: result.commission });
   } catch (err) {
-    console.error("Create commission error:", err);
+    logger.error({ err, tenantId, userId }, 'Create commission error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create commission" } });
   }
 });
@@ -722,7 +723,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error("Get commission error:", err);
+    logger.error({ err, tenantId }, 'Get commission error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get commission" } });
   }
 });
@@ -834,7 +835,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
 
     return res.json({ data: result.corrected });
   } catch (err) {
-    console.error("Correct commission error:", err);
+    logger.error({ err, tenantId, userId }, 'Correct commission error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to correct commission" } });
   }
 });
@@ -886,7 +887,7 @@ router.post("/:id/sync-to-qb", async (req: Request, res: Response) => {
 
     return res.json({ data: commission });
   } catch (err) {
-    console.error("Sync commission to QB error:", err);
+    logger.error({ err, tenantId, userId }, 'Sync commission to QB error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to sync commission to QuickBooks" } });
   }
 });

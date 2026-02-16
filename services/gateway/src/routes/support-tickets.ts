@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const ROLE_LEVEL: Record<string, number> = { agent: 0, managing_broker: 1, principal_broker: 2, owner: 3 };
 function hasMinRole(userRole: string, minRole: string): boolean {
@@ -63,7 +64,7 @@ router.get('/', async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('List support tickets error:', err);
+    logger.error({ err, tenantId, userId }, 'List support tickets error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list tickets' } });
   }
 });
@@ -116,7 +117,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: ticket });
   } catch (err) {
-    console.error('Create support ticket error:', err);
+    logger.error({ err, tenantId, userId }, 'Create support ticket error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create ticket' } });
   }
 });
@@ -163,7 +164,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Get support ticket error:', err);
+    logger.error({ err, tenantId, userId }, 'Get support ticket error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get ticket' } });
   }
 });
@@ -222,7 +223,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     return res.json({ data: ticket });
   } catch (err) {
-    console.error('Update support ticket error:', err);
+    logger.error({ err, tenantId, userId }, 'Update support ticket error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update ticket' } });
   }
 });
@@ -283,7 +284,7 @@ router.post('/:id/comments', async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: result });
   } catch (err) {
-    console.error('Add ticket comment error:', err);
+    logger.error({ err, tenantId, userId }, 'Add ticket comment error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to add comment' } });
   }
 });
@@ -311,7 +312,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error('Ticket stats error:', err);
+    logger.error({ err, tenantId }, 'Ticket stats error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get ticket statistics' } });
   }
 });

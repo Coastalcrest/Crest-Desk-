@@ -55,6 +55,8 @@ import subscriptionsRoutes from './routes/subscriptions';
 import whiteLabelRoutes from './routes/white-label';
 import sdkConfigRoutes from './routes/sdk-config';
 import onboardingRoutes from './routes/onboarding';
+import healthRoutes from './routes/health';
+import docsRoutes from './routes/docs';
 
 const app = express();
 
@@ -88,9 +90,7 @@ app.use(requestLogger);
 
 // ---- Health check (unauthenticated) ----------------------------- //
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'gateway', timestamp: new Date().toISOString() });
-});
+app.use('/health', healthRoutes);
 
 // ---- Route groups ----------------------------------------------- //
 
@@ -136,6 +136,7 @@ app.use('/api/v1/subscriptions', subscriptionsRoutes);
 app.use('/api/v1/white-label', whiteLabelRoutes);
 app.use('/api/v1/sdk', sdkConfigRoutes);
 app.use('/api/v1/onboarding', onboardingRoutes);
+app.use('/api/v1/docs', docsRoutes);
 
 // ---- Global error handler (must be registered last) ------------- //
 

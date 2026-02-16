@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -44,7 +45,7 @@ router.get('/policies', requireRole('principal_broker'), async (req: Request, re
 
     return res.json({ data: policy });
   } catch (err) {
-    console.error('Get security policies error:', err);
+    logger.error({ err, tenantId }, 'Get security policies error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get security policies' } });
   }
 });
@@ -98,7 +99,7 @@ router.patch('/policies', requireRole('owner'), async (req: Request, res: Respon
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Update security policies error:', err);
+    logger.error({ err, tenantId, userId }, 'Update security policies error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update security policies' } });
   }
 });
@@ -116,7 +117,7 @@ router.get('/ip-allowlist', requireRole('principal_broker'), async (req: Request
 
     return res.json({ data: entries, total: entries.length });
   } catch (err) {
-    console.error('List IP allowlist error:', err);
+    logger.error({ err, tenantId }, 'List IP allowlist error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list IP allowlist' } });
   }
 });
@@ -145,7 +146,7 @@ router.post('/ip-allowlist', requireRole('owner'), async (req: Request, res: Res
     if (err.code === '23505') {
       return res.status(409).json({ error: { code: 'CONFLICT', message: 'This CIDR range already exists' } });
     }
-    console.error('Add IP allowlist error:', err);
+    logger.error({ err, tenantId, userId }, 'Add IP allowlist error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to add IP allowlist entry' } });
   }
 });
@@ -181,7 +182,7 @@ router.patch('/ip-allowlist/:id', requireRole('owner'), async (req: Request, res
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Update IP allowlist error:', err);
+    logger.error({ err, tenantId, userId }, 'Update IP allowlist error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update IP allowlist entry' } });
   }
 });
@@ -207,7 +208,7 @@ router.delete('/ip-allowlist/:id', requireRole('owner'), async (req: Request, re
 
     return res.json({ data: { deleted: true } });
   } catch (err) {
-    console.error('Delete IP allowlist error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete IP allowlist error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete IP allowlist entry' } });
   }
 });
@@ -280,7 +281,7 @@ router.get('/dashboard', requireRole('principal_broker'), async (req: Request, r
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error('Security dashboard error:', err);
+    logger.error({ err, tenantId }, 'Security dashboard error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get security dashboard' } });
   }
 });

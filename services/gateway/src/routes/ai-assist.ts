@@ -4,6 +4,7 @@ import { db, withTenantContext } from '../lib/db';
 import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -48,7 +49,7 @@ router.get('/conversations', async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('List assist conversations error:', err);
+    logger.error({ err, tenantId, userId }, 'List assist conversations error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list conversations' } });
   }
 });
@@ -154,7 +155,7 @@ router.post('/conversations', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Create assist conversation error:', err);
+    logger.error({ err, tenantId, userId }, 'Create assist conversation error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to start conversation' } });
   }
 });
@@ -191,7 +192,7 @@ router.get('/conversations/:id', async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Get assist conversation error:', err);
+    logger.error({ err, tenantId, userId }, 'Get assist conversation error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get conversation' } });
   }
 });
@@ -314,7 +315,7 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
       data: { userMessage: result.userMessage, aiMessage: result.aiMessage },
     });
   } catch (err) {
-    console.error('Send assist message error:', err);
+    logger.error({ err, tenantId, userId }, 'Send assist message error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to send message' } });
   }
 });
@@ -403,7 +404,7 @@ router.post('/conversations/:id/escalate', async (req: Request, res: Response) =
 
     return res.status(201).json({ data: result.ticket });
   } catch (err) {
-    console.error('Escalate conversation error:', err);
+    logger.error({ err, tenantId, userId }, 'Escalate conversation error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to escalate conversation' } });
   }
 });
@@ -475,7 +476,7 @@ router.get('/articles', async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('List help articles error:', err);
+    logger.error({ err, tenantId }, 'List help articles error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list articles' } });
   }
 });
@@ -518,7 +519,7 @@ router.get('/articles/search', async (req: Request, res: Response) => {
 
     return res.json({ data: articles, total: articles.length });
   } catch (err) {
-    console.error('Search articles error:', err);
+    logger.error({ err, tenantId }, 'Search articles error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to search articles' } });
   }
 });
@@ -557,7 +558,7 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
 
     return res.json({ data: article });
   } catch (err) {
-    console.error('Get article error:', err);
+    logger.error({ err, tenantId }, 'Get article error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get article' } });
   }
 });
@@ -613,7 +614,7 @@ router.post('/articles/:slug/feedback', async (req: Request, res: Response) => {
 
     return res.json({ data: article });
   } catch (err) {
-    console.error('Article feedback error:', err);
+    logger.error({ err, tenantId, userId }, 'Article feedback error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to submit feedback' } });
   }
 });
@@ -652,7 +653,7 @@ router.get('/context-help', async (req: Request, res: Response) => {
 
     return res.json({ data: articles, total: articles.length });
   } catch (err) {
-    console.error('Context help error:', err);
+    logger.error({ err, tenantId }, 'Context help error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get contextual help' } });
   }
 });

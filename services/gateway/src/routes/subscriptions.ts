@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -22,7 +23,7 @@ router.get('/plans', async (_req: Request, res: Response) => {
 
     return res.json({ data: plans, total: plans.length });
   } catch (err) {
-    console.error('List subscription plans error:', err);
+    logger.error({ err }, 'List subscription plans error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list subscription plans' } });
   }
 });
@@ -41,7 +42,7 @@ router.get('/plans/:planCode', async (req: Request, res: Response) => {
 
     return res.json({ data: plan });
   } catch (err) {
-    console.error('Get subscription plan error:', err);
+    logger.error({ err }, 'Get subscription plan error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get subscription plan' } });
   }
 });
@@ -101,7 +102,7 @@ router.get('/current', async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Get current subscription error:', err);
+    logger.error({ err, tenantId }, 'Get current subscription error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get current subscription' } });
   }
 });
@@ -127,7 +128,7 @@ router.get('/usage', async (req: Request, res: Response) => {
 
     return res.json({ data: usage, total: usage.length });
   } catch (err) {
-    console.error('Get usage error:', err);
+    logger.error({ err, tenantId }, 'Get usage error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get usage data' } });
   }
 });
@@ -163,7 +164,7 @@ router.get('/usage/history', async (req: Request, res: Response) => {
 
     return res.json({ data: periods, total: periods.length });
   } catch (err) {
-    console.error('Get usage history error:', err);
+    logger.error({ err, tenantId }, 'Get usage history error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get usage history' } });
   }
 });
@@ -217,7 +218,7 @@ router.patch('/billing-info', requireRole('owner'), async (req: Request, res: Re
       },
     });
   } catch (err) {
-    console.error('Update billing info error:', err);
+    logger.error({ err, tenantId, userId }, 'Update billing info error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update billing info' } });
   }
 });

@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
 import { authLimiter } from '../middleware/rate-limiter';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -102,7 +103,7 @@ router.post('/signup', authLimiter, async (req: Request, res: Response) => {
     if (err.code === '23505') {
       return res.status(409).json({ error: { code: 'CONFLICT', message: 'An account with this email already exists' } });
     }
-    console.error('Signup error:', err);
+    logger.error({ err }, 'Signup error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create account' } });
   }
 });
@@ -130,7 +131,7 @@ router.get('/status', requireRole('owner'), async (req: Request, res: Response) 
 
     return res.json({ data: onboarding });
   } catch (err) {
-    console.error('Get onboarding status error:', err);
+    logger.error({ err, tenantId }, 'Get onboarding status error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get onboarding status' } });
   }
 });
@@ -176,7 +177,7 @@ router.patch('/step', requireRole('owner'), async (req: Request, res: Response) 
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Update onboarding step error:', err);
+    logger.error({ err, tenantId, userId }, 'Update onboarding step error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update onboarding step' } });
   }
 });
@@ -211,7 +212,7 @@ router.post('/complete', requireRole('owner'), async (req: Request, res: Respons
 
     return res.json({ data: { completed: true, completedAt: result.onboardingCompletedAt } });
   } catch (err) {
-    console.error('Complete onboarding error:', err);
+    logger.error({ err, tenantId, userId }, 'Complete onboarding error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to complete onboarding' } });
   }
 });

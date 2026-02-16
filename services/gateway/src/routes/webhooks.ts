@@ -6,6 +6,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -64,7 +65,7 @@ router.get('/endpoints', requireRole('owner'), async (req: Request, res: Respons
 
     return res.json({ data: endpoints, total: endpoints.length });
   } catch (err) {
-    console.error('List webhook endpoints error:', err);
+    logger.error({ err, tenantId }, 'List webhook endpoints error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list webhook endpoints' } });
   }
 });
@@ -118,7 +119,7 @@ router.post('/endpoints', requireRole('owner'), async (req: Request, res: Respon
     if (err.code === '23505') {
       return res.status(409).json({ error: { code: 'CONFLICT', message: 'A webhook endpoint with this URL already exists' } });
     }
-    console.error('Create webhook endpoint error:', err);
+    logger.error({ err, tenantId, userId }, 'Create webhook endpoint error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create webhook endpoint' } });
   }
 });
@@ -155,7 +156,7 @@ router.get('/endpoints/:id', requireRole('owner'), async (req: Request, res: Res
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Get webhook endpoint error:', err);
+    logger.error({ err, tenantId }, 'Get webhook endpoint error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get webhook endpoint' } });
   }
 });
@@ -202,7 +203,7 @@ router.patch('/endpoints/:id', requireRole('owner'), async (req: Request, res: R
       },
     });
   } catch (err) {
-    console.error('Update webhook endpoint error:', err);
+    logger.error({ err, tenantId, userId }, 'Update webhook endpoint error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update webhook endpoint' } });
   }
 });
@@ -228,7 +229,7 @@ router.delete('/endpoints/:id', requireRole('owner'), async (req: Request, res: 
 
     return res.json({ data: { deleted: true } });
   } catch (err) {
-    console.error('Delete webhook endpoint error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete webhook endpoint error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete webhook endpoint' } });
   }
 });
@@ -273,7 +274,7 @@ router.post('/endpoints/:id/test', requireRole('owner'), async (req: Request, re
 
     return res.status(201).json({ data: delivery });
   } catch (err) {
-    console.error('Test webhook error:', err);
+    logger.error({ err, tenantId, userId }, 'Test webhook error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create test delivery' } });
   }
 });
@@ -312,7 +313,7 @@ router.get('/endpoints/:id/deliveries', requireRole('owner'), async (req: Reques
 
     return res.json({ data: result.deliveries, total: result.total });
   } catch (err) {
-    console.error('List webhook deliveries error:', err);
+    logger.error({ err, tenantId }, 'List webhook deliveries error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list webhook deliveries' } });
   }
 });

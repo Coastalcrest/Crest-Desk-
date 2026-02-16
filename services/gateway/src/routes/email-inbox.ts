@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
 import { validateBody, validateQuery } from '../middleware/validate';
+import { logger } from '../lib/logger';
 import {
   composeEmailSchema,
   batchActionSchema,
@@ -61,7 +62,7 @@ router.get("/", validateQuery(listEmailsQuery), async (req: Request, res: Respon
     const total = (countRes[0]?.total as number) ?? 0;
     sendPaginated(res, emails, { page, pageSize, total });
   } catch (err) {
-    console.error("List emails error:", err);
+    logger.error({ err, tenantId, userId }, 'List emails error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list emails" } });
   }
 });
@@ -87,7 +88,7 @@ router.get("/stats", async (req: Request, res: Response) => {
     });
     return res.json({ data: stats });
   } catch (err) {
-    console.error("Email stats error:", err);
+    logger.error({ err, tenantId, userId }, 'Email stats error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get email stats" } });
   }
 });
@@ -110,7 +111,7 @@ router.get("/threads/:threadId", async (req: Request, res: Response) => {
     }
     return res.json({ data: emails });
   } catch (err) {
-    console.error("Get thread error:", err);
+    logger.error({ err, tenantId, userId }, 'Get thread error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get email thread" } });
   }
 });
@@ -141,7 +142,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
     return res.json({ data: { ...email, isRead: true } });
   } catch (err) {
-    console.error("Get email error:", err);
+    logger.error({ err, tenantId, userId }, 'Get email error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get email" } });
   }
 });
@@ -198,7 +199,7 @@ router.post("/", validateBody(composeEmailSchema), async (req: Request, res: Res
 
     return res.status(201).json({ data: email });
   } catch (err) {
-    console.error("Compose email error:", err);
+    logger.error({ err, tenantId, userId }, 'Compose email error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to compose email" } });
   }
 });
@@ -233,7 +234,7 @@ router.post("/ai-reply", validateBody(aiReplySchema), async (req: Request, res: 
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { replySubject, generatedReply, alternatives, tone: toneLabel, originalEmailId: emailId } });
   } catch (err) {
-    console.error("AI reply error:", err);
+    logger.error({ err, tenantId, userId }, 'AI reply error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to generate AI reply" } });
   }
 });
@@ -269,7 +270,7 @@ router.post("/ai-summarize", async (req: Request, res: Response) => {
     });
     return res.json({ data: { summaries, totalProcessed: summaries.length } });
   } catch (err) {
-    console.error("AI summarize error:", err);
+    logger.error({ err, tenantId, userId }, 'AI summarize error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to summarize emails" } });
   }
 });
@@ -297,7 +298,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
     if (!email) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Email not found" } });
     return res.json({ data: email });
   } catch (err) {
-    console.error("Update email error:", err);
+    logger.error({ err, tenantId, userId }, 'Update email error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update email" } });
   }
 });
@@ -332,7 +333,7 @@ router.post("/batch", validateBody(batchActionSchema), async (req: Request, res:
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { action, affected: count } });
   } catch (err) {
-    console.error("Batch email error:", err);
+    logger.error({ err, tenantId, userId }, 'Batch email error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to batch update emails" } });
   }
 });
@@ -352,7 +353,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
       resourceId: id, details: {}, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete email error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete email error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete email" } });
   }
 });

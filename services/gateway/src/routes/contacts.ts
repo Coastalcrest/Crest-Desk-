@@ -15,6 +15,7 @@ import {
   enrollContactSchema,
 } from '../schemas';
 import { sendData, sendPaginated, sendError } from '../lib/response';
+import { logger } from '../lib/logger';
 
 const ROLE_LEVEL: Record<string, number> = { agent: 0, managing_broker: 1, principal_broker: 2, owner: 3 };
 function hasMinRole(userRole: string, minRole: string): boolean {
@@ -117,7 +118,7 @@ router.get('/', validateQuery(listContactsQuery), async (req: Request, res: Resp
 
     sendPaginated(res, contacts, { page, pageSize, total });
   } catch (err) {
-    console.error('List contacts error:', err);
+    logger.error({ err, tenantId }, 'List contacts error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list contacts' } });
   }
 });
@@ -150,7 +151,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error('Contact stats error:', err);
+    logger.error({ err, tenantId }, 'Contact stats error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get contact stats' } });
   }
 });
@@ -227,7 +228,7 @@ router.post('/', validateBody(createContactSchema), async (req: Request, res: Re
 
     return res.status(201).json(contact);
   } catch (err) {
-    console.error('Create contact error:', err);
+    logger.error({ err, tenantId, userId }, 'Create contact error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create contact' } });
   }
 });
@@ -280,7 +281,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json(result);
   } catch (err) {
-    console.error('Get contact error:', err);
+    logger.error({ err, tenantId }, 'Get contact error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get contact' } });
   }
 });
@@ -322,7 +323,7 @@ router.patch('/:id', validateBody(updateContactSchema), async (req: Request, res
 
     return res.json(contact);
   } catch (err) {
-    console.error('Update contact error:', err);
+    logger.error({ err, tenantId, userId }, 'Update contact error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update contact' } });
   }
 });
@@ -375,7 +376,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     return res.status(204).send();
   } catch (err) {
-    console.error('Delete contact error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete contact error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete contact' } });
   }
 });
@@ -431,7 +432,7 @@ router.post('/:id/activities', validateBody(logActivitySchema), async (req: Requ
 
     return res.status(201).json(result);
   } catch (err) {
-    console.error('Log activity error:', err);
+    logger.error({ err, tenantId, userId }, 'Log activity error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to log activity' } });
   }
 });
@@ -472,7 +473,7 @@ router.get('/:id/activities', async (req: Request, res: Response) => {
 
     sendPaginated(res, activities, { page, pageSize, total });
   } catch (err) {
-    console.error('List activities error:', err);
+    logger.error({ err, tenantId }, 'List activities error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list activities' } });
   }
 });
@@ -511,7 +512,7 @@ router.post('/:id/tags', validateBody(addTagsSchema), async (req: Request, res: 
 
     return res.json(contact);
   } catch (err) {
-    console.error('Add tags error:', err);
+    logger.error({ err, tenantId, userId }, 'Add tags error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to add tags' } });
   }
 });
@@ -549,7 +550,7 @@ router.delete('/:id/tags/:tag', async (req: Request, res: Response) => {
 
     return res.json(contact);
   } catch (err) {
-    console.error('Remove tag error:', err);
+    logger.error({ err, tenantId, userId }, 'Remove tag error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to remove tag' } });
   }
 });
@@ -640,7 +641,7 @@ router.post('/import', validateBody(importContactsSchema), async (req: Request, 
 
     return res.status(200).json(result);
   } catch (err) {
-    console.error('Import contacts error:', err);
+    logger.error({ err, tenantId, userId }, 'Import contacts error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to import contacts' } });
   }
 });
@@ -715,7 +716,7 @@ router.post('/:id/enroll', validateBody(enrollContactSchema), async (req: Reques
 
     return res.status(201).json(result.enrollment);
   } catch (err) {
-    console.error('Enroll contact error:', err);
+    logger.error({ err, tenantId, userId }, 'Enroll contact error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to enroll contact' } });
   }
 });

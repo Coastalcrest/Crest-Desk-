@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole, hasMinimumRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -47,7 +48,7 @@ router.get('/events', requireRole('principal_broker'), async (req: Request, res:
       pagination: { page, limit, total: result.total, pages: Math.ceil(result.total / limit) },
     });
   } catch (err) {
-    console.error('List security events error:', err);
+    logger.error({ err, tenantId }, 'List security events error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list security events' } });
   }
 });
@@ -124,7 +125,7 @@ router.get('/events/stats', requireRole('principal_broker'), async (req: Request
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error('Security events stats error:', err);
+    logger.error({ err, tenantId }, 'Security events stats error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get event stats' } });
   }
 });
@@ -147,7 +148,7 @@ router.get('/events/:id', requireRole('principal_broker'), async (req: Request, 
 
     return res.json({ data: event });
   } catch (err) {
-    console.error('Get security event error:', err);
+    logger.error({ err, tenantId }, 'Get security event error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get security event' } });
   }
 });
@@ -176,7 +177,7 @@ router.patch('/events/:id/resolve', requireRole('principal_broker'), async (req:
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Resolve security event error:', err);
+    logger.error({ err, tenantId, userId }, 'Resolve security event error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to resolve security event' } });
   }
 });
@@ -213,7 +214,7 @@ router.get('/login-history', async (req: Request, res: Response) => {
       pagination: { page, limit, total: result.total, pages: Math.ceil(result.total / limit) },
     });
   } catch (err) {
-    console.error('List login history error:', err);
+    logger.error({ err, tenantId, userId }, 'List login history error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list login history' } });
   }
 });
@@ -249,7 +250,7 @@ router.get('/login-history/:userId', requireRole('managing_broker'), async (req:
       pagination: { page, limit, total: result.total, pages: Math.ceil(result.total / limit) },
     });
   } catch (err) {
-    console.error('Get user login history error:', err);
+    logger.error({ err, tenantId }, 'Get user login history error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get user login history' } });
   }
 });
@@ -271,7 +272,7 @@ router.get('/trusted-devices', async (req: Request, res: Response) => {
 
     return res.json({ data: devices, total: devices.length });
   } catch (err) {
-    console.error('List trusted devices error:', err);
+    logger.error({ err, tenantId, userId }, 'List trusted devices error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list trusted devices' } });
   }
 });
@@ -302,7 +303,7 @@ router.delete('/trusted-devices/:id', async (req: Request, res: Response) => {
 
     return res.json({ data: revoked });
   } catch (err) {
-    console.error('Revoke trusted device error:', err);
+    logger.error({ err, tenantId, userId }, 'Revoke trusted device error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to revoke trusted device' } });
   }
 });
@@ -332,7 +333,7 @@ router.post('/trusted-devices/:id/revoke', requireRole('managing_broker'), async
 
     return res.json({ data: revoked });
   } catch (err) {
-    console.error('Admin revoke trusted device error:', err);
+    logger.error({ err, tenantId, userId }, 'Admin revoke trusted device error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to admin revoke trusted device' } });
   }
 });

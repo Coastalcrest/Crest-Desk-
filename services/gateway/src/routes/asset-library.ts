@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -46,7 +47,7 @@ router.get("/", async (req: Request, res: Response) => {
     const total = countRes[0]?.total ?? 0;
     return res.json({ data: assets, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
-    console.error("List library assets error:", err);
+    logger.error({ err, tenantId }, 'List library assets error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list library assets" } });
   }
 });
@@ -67,7 +68,7 @@ router.get("/categories", async (req: Request, res: Response) => {
     });
     return res.json({ data: categories });
   } catch (err) {
-    console.error("Get categories error:", err);
+    logger.error({ err, tenantId }, 'Get categories error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get categories" } });
   }
 });
@@ -88,7 +89,7 @@ router.get("/seasonal", async (req: Request, res: Response) => {
     });
     return res.json({ data: assets });
   } catch (err) {
-    console.error("Seasonal assets error:", err);
+    logger.error({ err, tenantId }, 'Seasonal assets error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get seasonal assets" } });
   }
 });
@@ -116,7 +117,7 @@ router.get("/recommended", async (req: Request, res: Response) => {
     });
     return res.json({ data: { assets, preferences: prefs || null } });
   } catch (err) {
-    console.error("Recommended assets error:", err);
+    logger.error({ err, tenantId, userId }, 'Recommended assets error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get recommended assets" } });
   }
 });
@@ -149,7 +150,7 @@ router.post("/", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: asset });
   } catch (err) {
-    console.error("Upload library asset error:", err);
+    logger.error({ err, tenantId, userId }, 'Upload library asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to upload library asset" } });
   }
 });
@@ -183,7 +184,7 @@ router.get("/templates", async (req: Request, res: Response) => {
     const total = countRes[0]?.total ?? 0;
     return res.json({ data: templates, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
-    console.error("List templates error:", err);
+    logger.error({ err, tenantId }, 'List templates error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list templates" } });
   }
 });
@@ -217,7 +218,7 @@ router.post("/templates", requireRole("managing_broker"), async (req: Request, r
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: template });
   } catch (err) {
-    console.error("Create template error:", err);
+    logger.error({ err, tenantId, userId }, 'Create template error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create template" } });
   }
 });
@@ -238,7 +239,7 @@ router.get("/templates/:id", async (req: Request, res: Response) => {
     if (!template) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Template not found" } });
     return res.json({ data: template });
   } catch (err) {
-    console.error("Get template error:", err);
+    logger.error({ err, tenantId }, 'Get template error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get template" } });
   }
 });
@@ -270,7 +271,7 @@ router.patch("/templates/:id", requireRole("managing_broker"), async (req: Reque
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: template });
   } catch (err) {
-    console.error("Update template error:", err);
+    logger.error({ err, tenantId, userId }, 'Update template error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update template" } });
   }
 });
@@ -294,7 +295,7 @@ router.delete("/templates/:id", requireRole("managing_broker"), async (req: Requ
       resourceId: id, details: { name: template.name }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete template error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete template error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete template" } });
   }
 });
@@ -311,7 +312,7 @@ router.get("/preferences", async (req: Request, res: Response) => {
     });
     return res.json({ data: prefs || null });
   } catch (err) {
-    console.error("Get preferences error:", err);
+    logger.error({ err, tenantId, userId }, 'Get preferences error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get preferences" } });
   }
 });
@@ -357,7 +358,7 @@ router.put("/preferences", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: prefs });
   } catch (err) {
-    console.error("Update preferences error:", err);
+    logger.error({ err, tenantId, userId }, 'Update preferences error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update preferences" } });
   }
 });
@@ -377,7 +378,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     if (!asset) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Library asset not found" } });
     return res.json({ data: asset });
   } catch (err) {
-    console.error("Get library asset error:", err);
+    logger.error({ err, tenantId }, 'Get library asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get library asset" } });
   }
 });
@@ -409,7 +410,7 @@ router.patch("/:id", requireRole("managing_broker"), async (req: Request, res: R
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: asset });
   } catch (err) {
-    console.error("Update library asset error:", err);
+    logger.error({ err, tenantId, userId }, 'Update library asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update library asset" } });
   }
 });
@@ -433,7 +434,7 @@ router.delete("/:id", requireRole("managing_broker"), async (req: Request, res: 
       resourceId: id, details: { name: asset.name }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete library asset error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete library asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete library asset" } });
   }
 });
@@ -455,7 +456,7 @@ router.post("/:id/download", async (req: Request, res: Response) => {
     if (!asset) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Library asset not found" } });
     return res.json({ data: { id: asset.id, filePath: asset.filePath, downloadCount: asset.downloadCount } });
   } catch (err) {
-    console.error("Download asset error:", err);
+    logger.error({ err, tenantId, userId }, 'Download asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to download asset" } });
   }
 });

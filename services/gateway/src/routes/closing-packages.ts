@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
 import crypto from 'crypto';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -83,7 +84,7 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Create closing package error:', err);
+    logger.error({ err, tenantId, userId }, 'Create closing package error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create closing package' } });
   }
 });
@@ -123,7 +124,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json({ data: { ...pkg, documents } });
   } catch (err) {
-    console.error('Get closing package error:', err);
+    logger.error({ err, tenantId }, 'Get closing package error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get closing package' } });
   }
 });
@@ -145,7 +146,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     return res.json({ data: packages });
   } catch (err) {
-    console.error('List closing packages error:', err);
+    logger.error({ err, tenantId }, 'List closing packages error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list closing packages' } });
   }
 });
@@ -176,7 +177,7 @@ router.post('/:id/submit-to-title', async (req: Request, res: Response) => {
 
     return res.json({ success: true, submitted_at: pkg.submissionTimestamp });
   } catch (err) {
-    console.error('Submit to title error:', err);
+    logger.error({ err, tenantId, userId }, 'Submit to title error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to submit to title company' } });
   }
 });
@@ -208,7 +209,7 @@ router.post('/:id/approve', requireRole('principal_broker'), async (req: Request
 
     return res.json({ success: true, approved, approved_at: pkg.finalApprovalAt });
   } catch (err) {
-    console.error('Approve closing package error:', err);
+    logger.error({ err, tenantId, userId }, 'Approve closing package error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to approve closing package' } });
   }
 });
@@ -255,7 +256,7 @@ router.post('/verify-signature/:signatureId', async (req: Request, res: Response
       },
     });
   } catch (err) {
-    console.error('Verify signature error:', err);
+    logger.error({ err, tenantId }, 'Verify signature error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to verify signature' } });
   }
 });

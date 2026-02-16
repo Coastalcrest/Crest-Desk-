@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
 import crypto from 'crypto';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -64,7 +65,7 @@ router.post('/upload', async (req: Request, res: Response) => {
 
     return res.status(201).json(doc);
   } catch (err) {
-    console.error('Upload document error:', err);
+    logger.error({ err, tenantId, userId }, 'Upload document error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to upload document' } });
   }
 });
@@ -90,7 +91,7 @@ router.get('/upload-url', async (req: Request, res: Response) => {
       expiresIn: 300, // 5 minutes
     });
   } catch (err) {
-    console.error('Generate upload URL error:', err);
+    logger.error({ err, tenantId }, 'Generate upload URL error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to generate upload URL' } });
   }
 });
@@ -135,7 +136,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     return res.json({ data: docs, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
-    console.error('List documents error:', err);
+    logger.error({ err, tenantId }, 'List documents error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list documents' } });
   }
 });
@@ -173,7 +174,7 @@ router.get('/search', async (req: Request, res: Response) => {
 
     return res.json({ data: docs, total: docs.length });
   } catch (err) {
-    console.error('Search documents error:', err);
+    logger.error({ err, tenantId }, 'Search documents error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to search documents' } });
   }
 });
@@ -196,7 +197,7 @@ router.get('/transaction/:txnId', async (req: Request, res: Response) => {
 
     return res.json({ data: docs });
   } catch (err) {
-    console.error('List transaction documents error:', err);
+    logger.error({ err, tenantId }, 'List transaction documents error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list documents' } });
   }
 });
@@ -232,7 +233,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json(doc);
   } catch (err) {
-    console.error('Get document error:', err);
+    logger.error({ err, tenantId, userId }, 'Get document error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get document' } });
   }
 });
@@ -271,7 +272,7 @@ router.get('/:id/download', async (req: Request, res: Response) => {
 
     return res.json({ downloadUrl, expiresIn: 300, filename: doc.originalFilename });
   } catch (err) {
-    console.error('Download document error:', err);
+    logger.error({ err, tenantId, userId }, 'Download document error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to generate download URL' } });
   }
 });
@@ -317,7 +318,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     return res.json(doc);
   } catch (err) {
-    console.error('Update document error:', err);
+    logger.error({ err, tenantId, userId }, 'Update document error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update document' } });
   }
 });
@@ -364,7 +365,7 @@ router.post('/:id/classify', async (req: Request, res: Response) => {
 
     return res.json(doc);
   } catch (err) {
-    console.error('Classify document error:', err);
+    logger.error({ err, tenantId, userId }, 'Classify document error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to classify document' } });
   }
 });
@@ -405,7 +406,7 @@ router.post('/:id/tag', async (req: Request, res: Response) => {
 
     return res.status(201).json(tag);
   } catch (err) {
-    console.error('Add tag error:', err);
+    logger.error({ err, tenantId }, 'Add tag error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to add tag' } });
   }
 });
@@ -444,7 +445,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     return res.status(204).send();
   } catch (err) {
-    console.error('Delete document error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete document error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete document' } });
   }
 });

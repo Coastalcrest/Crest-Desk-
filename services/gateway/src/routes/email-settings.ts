@@ -4,6 +4,7 @@ import { db, withTenantContext } from '../lib/db';
 import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -25,7 +26,7 @@ router.get("/accounts", async (req: Request, res: Response) => {
     });
     return res.json({ data: accounts });
   } catch (err) {
-    console.error("List accounts error:", err);
+    logger.error({ err, tenantId, userId }, 'List accounts error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list email accounts" } });
   }
 });
@@ -60,7 +61,7 @@ router.post("/accounts", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: account });
   } catch (err) {
-    console.error("Add account error:", err);
+    logger.error({ err, tenantId, userId }, 'Add account error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to add email account" } });
   }
 });
@@ -94,7 +95,7 @@ router.patch("/accounts/:id", async (req: Request, res: Response) => {
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: account });
   } catch (err) {
-    console.error("Update account error:", err);
+    logger.error({ err, tenantId, userId }, 'Update account error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update email account" } });
   }
 });
@@ -114,7 +115,7 @@ router.delete("/accounts/:id", async (req: Request, res: Response) => {
       resourceId: id, details: {}, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete account error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete account error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete email account" } });
   }
 });
@@ -141,7 +142,7 @@ router.get("/templates", async (req: Request, res: Response) => {
     });
     return res.json({ data: templates });
   } catch (err) {
-    console.error("List templates error:", err);
+    logger.error({ err, tenantId, userId }, 'List templates error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list templates" } });
   }
 });
@@ -166,7 +167,7 @@ router.post("/templates", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: template });
   } catch (err) {
-    console.error("Create template error:", err);
+    logger.error({ err, tenantId, userId }, 'Create template error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create template" } });
   }
 });
@@ -192,7 +193,7 @@ router.patch("/templates/:id", async (req: Request, res: Response) => {
     if (!template) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Template not found" } });
     return res.json({ data: template });
   } catch (err) {
-    console.error("Update template error:", err);
+    logger.error({ err, tenantId, userId }, 'Update template error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update template" } });
   }
 });
@@ -210,7 +211,7 @@ router.delete("/templates/:id", async (req: Request, res: Response) => {
     if (!template) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Template not found" } });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete template error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete template error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete template" } });
   }
 });
@@ -232,7 +233,7 @@ router.get("/rules", async (req: Request, res: Response) => {
     });
     return res.json({ data: rules });
   } catch (err) {
-    console.error("List rules error:", err);
+    logger.error({ err, tenantId, userId }, 'List rules error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list rules" } });
   }
 });
@@ -257,7 +258,7 @@ router.post("/rules", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: rule });
   } catch (err) {
-    console.error("Create rule error:", err);
+    logger.error({ err, tenantId, userId }, 'Create rule error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create rule" } });
   }
 });
@@ -283,7 +284,7 @@ router.patch("/rules/:id", async (req: Request, res: Response) => {
     if (!rule) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Rule not found" } });
     return res.json({ data: rule });
   } catch (err) {
-    console.error("Update rule error:", err);
+    logger.error({ err, tenantId, userId }, 'Update rule error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update rule" } });
   }
 });
@@ -301,7 +302,7 @@ router.delete("/rules/:id", async (req: Request, res: Response) => {
     if (!rule) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Rule not found" } });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete rule error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete rule error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete rule" } });
   }
 });
@@ -326,7 +327,7 @@ router.get("/ai-preferences", async (req: Request, res: Response) => {
     }
     return res.json({ data: prefs });
   } catch (err) {
-    console.error("Get AI prefs error:", err);
+    logger.error({ err, tenantId, userId }, 'Get AI prefs error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get AI preferences" } });
   }
 });
@@ -374,7 +375,7 @@ router.put("/ai-preferences", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: prefs });
   } catch (err) {
-    console.error("Update AI prefs error:", err);
+    logger.error({ err, tenantId, userId }, 'Update AI prefs error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update AI preferences" } });
   }
 });

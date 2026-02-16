@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
 import { validateBody, validateQuery } from '../middleware/validate';
+import { logger } from '../lib/logger';
 import {
   createPostSchema,
   updatePostSchema,
@@ -53,7 +54,7 @@ router.get("/", validateQuery(listPostsQuery), async (req: Request, res: Respons
     const total = (countRes[0]?.total as number) ?? 0;
     sendPaginated(res, posts, { page, pageSize, total });
   } catch (err) {
-    console.error("List social posts error:", err);
+    logger.error({ err, tenantId, userId }, 'List social posts error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list social posts" } });
   }
 });
@@ -89,7 +90,7 @@ router.get("/stats", async (req: Request, res: Response) => {
     });
     return res.json({ data: stats });
   } catch (err) {
-    console.error("Post stats error:", err);
+    logger.error({ err, tenantId }, 'Post stats error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get post stats" } });
   }
 });
@@ -120,7 +121,7 @@ router.get("/calendar", async (req: Request, res: Response) => {
     }
     return res.json({ data: { month, year, calendar } });
   } catch (err) {
-    console.error("Calendar view error:", err);
+    logger.error({ err, tenantId }, 'Calendar view error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get calendar view" } });
   }
 });
@@ -148,7 +149,7 @@ router.post("/", validateBody(createPostSchema), async (req: Request, res: Respo
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: post });
   } catch (err) {
-    console.error("Create social post error:", err);
+    logger.error({ err, tenantId, userId }, 'Create social post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create social post" } });
   }
 });
@@ -194,7 +195,7 @@ router.post("/generate", validateBody(generatePostSchema), async (req: Request, 
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: { post, generatedContent, hashtags: generatedHashtags, captionVariations } });
   } catch (err) {
-    console.error("Generate post error:", err);
+    logger.error({ err, tenantId, userId }, 'Generate post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to generate post content" } });
   }
 });
@@ -238,7 +239,7 @@ router.post("/bulk-schedule", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: { posts: createdPosts, totalScheduled: createdPosts.length } });
   } catch (err) {
-    console.error("Bulk schedule error:", err);
+    logger.error({ err, tenantId, userId }, 'Bulk schedule error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to bulk schedule posts" } });
   }
 });
@@ -261,7 +262,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
     return res.json({ data: post });
   } catch (err) {
-    console.error("Get social post error:", err);
+    logger.error({ err, tenantId }, 'Get social post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get social post" } });
   }
 });
@@ -288,7 +289,7 @@ router.patch("/:id", validateBody(updatePostSchema), async (req: Request, res: R
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: post });
   } catch (err) {
-    console.error("Update social post error:", err);
+    logger.error({ err, tenantId, userId }, 'Update social post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update social post" } });
   }
 });
@@ -308,7 +309,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
       resourceId: id, details: {}, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete social post error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete social post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete social post" } });
   }
 });
@@ -351,7 +352,7 @@ router.post("/:id/compliance-check", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { post: updated, complianceResult: { status: finalStatus, totalChecks: issues.length, failedChecks: failedIssues.length, issues } } });
   } catch (err) {
-    console.error("Compliance check error:", err);
+    logger.error({ err, tenantId, userId }, 'Compliance check error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to run compliance check" } });
   }
 });
@@ -381,7 +382,7 @@ router.post("/:id/approve", requireRole("managing_broker"), async (req: Request,
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: post });
   } catch (err) {
-    console.error("Approve post error:", err);
+    logger.error({ err, tenantId, userId }, 'Approve post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to approve post" } });
   }
 });
@@ -411,7 +412,7 @@ router.post("/:id/reject", requireRole("managing_broker"), async (req: Request, 
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: post });
   } catch (err) {
-    console.error("Reject post error:", err);
+    logger.error({ err, tenantId, userId }, 'Reject post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to reject post" } });
   }
 });
@@ -442,7 +443,7 @@ router.post("/:id/publish", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: post });
   } catch (err) {
-    console.error("Publish post error:", err);
+    logger.error({ err, tenantId, userId }, 'Publish post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to publish post" } });
   }
 });
@@ -467,7 +468,7 @@ router.post("/:id/reschedule", async (req: Request, res: Response) => {
       resourceId: id, details: { scheduledAt }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: post });
   } catch (err) {
-    console.error("Reschedule post error:", err);
+    logger.error({ err, tenantId, userId }, 'Reschedule post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to reschedule post" } });
   }
 });
@@ -495,7 +496,7 @@ router.get("/approval-queue", requireRole("managing_broker"), async (req: Reques
     const total = (countRes[0]?.total as number) ?? 0;
     sendPaginated(res, posts, { page, pageSize, total });
   } catch (err) {
-    console.error("Approval queue error:", err);
+    logger.error({ err, tenantId }, 'Approval queue error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get approval queue" } });
   }
 });
@@ -555,7 +556,7 @@ router.post("/milestone", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: { posts, milestoneType, content } });
   } catch (err) {
-    console.error("Milestone post error:", err);
+    logger.error({ err, tenantId, userId }, 'Milestone post error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create milestone post" } });
   }
 });

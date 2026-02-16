@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
 import crypto from 'crypto';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.post('/envelopes', async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: envelope });
   } catch (err) {
-    console.error('Create envelope error:', err);
+    logger.error({ err, tenantId, userId }, 'Create envelope error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create signing envelope' } });
   }
 });
@@ -147,7 +148,7 @@ router.post('/envelopes/:envelopeId/send', async (req: Request, res: Response) =
 
     return res.json({ data: { envelope_id: envelopeId, status: 'sent', signing_requests: signingRequests.map(r => ({ id: r.id, signer_email: r.signerEmail, status: r.status, sent_at: r.sentAt })) } });
   } catch (err) {
-    console.error('Send envelope error:', err);
+    logger.error({ err, tenantId, userId }, 'Send envelope error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to send envelope' } });
   }
 });
@@ -175,7 +176,7 @@ router.get('/envelopes/:envelopeId', async (req: Request, res: Response) => {
 
     return res.json({ data: { ...envelope, signing_requests: requests } });
   } catch (err) {
-    console.error('Get envelope error:', err);
+    logger.error({ err, tenantId }, 'Get envelope error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get envelope' } });
   }
 });
@@ -203,7 +204,7 @@ router.get('/envelopes', async (req: Request, res: Response) => {
 
     return res.json({ data: envelopes });
   } catch (err) {
-    console.error('List envelopes error:', err);
+    logger.error({ err, tenantId }, 'List envelopes error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list envelopes' } });
   }
 });
@@ -245,7 +246,7 @@ router.post('/envelopes/:envelopeId/remind', async (req: Request, res: Response)
 
     return res.json({ success: true, emails_sent: toRemind.length });
   } catch (err) {
-    console.error('Send reminder error:', err);
+    logger.error({ err, tenantId, userId }, 'Send reminder error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to send reminder' } });
   }
 });
@@ -290,7 +291,7 @@ router.post('/envelopes/:envelopeId/add-witness', async (req: Request, res: Resp
 
     return res.json({ success: true, witness_request_id: witnessRequest.id });
   } catch (err) {
-    console.error('Add witness error:', err);
+    logger.error({ err, tenantId, userId }, 'Add witness error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to add witness' } });
   }
 });
@@ -308,7 +309,7 @@ router.get('/state-rules/:state', async (req: Request, res: Response) => {
 
     return res.json({ data: { jurisdiction: state, rules } });
   } catch (err) {
-    console.error('Get state rules error:', err);
+    logger.error({ err }, 'Get state rules error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get state signing rules' } });
   }
 });

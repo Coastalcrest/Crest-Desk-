@@ -4,6 +4,7 @@ import { db, withTenantContext } from '../lib/db';
 import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -114,7 +115,7 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('List review queue error:', err);
+    logger.error({ err, tenantId, userId }, 'List review queue error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list review queue' } });
   }
 });
@@ -191,7 +192,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error('Review queue stats error:', err);
+    logger.error({ err, tenantId }, 'Review queue stats error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get review queue stats' } });
   }
 });
@@ -326,7 +327,7 @@ router.post('/submit/:transactionId', async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: queueItem });
   } catch (err) {
-    console.error('Submit for review error:', err);
+    logger.error({ err, tenantId, userId }, 'Submit for review error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to submit transaction for review' } });
   }
 });
@@ -380,7 +381,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Get review queue item error:', err);
+    logger.error({ err, tenantId }, 'Get review queue item error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get review queue item' } });
   }
 });
@@ -431,7 +432,7 @@ router.patch('/:id/start-review', async (req: Request, res: Response) => {
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Start review error:', err);
+    logger.error({ err, tenantId, userId }, 'Start review error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to start review' } });
   }
 });
@@ -498,7 +499,7 @@ router.post('/:id/findings', async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: finding });
   } catch (err) {
-    console.error('Add finding error:', err);
+    logger.error({ err, tenantId, userId }, 'Add finding error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to add finding' } });
   }
 });
@@ -592,7 +593,7 @@ router.patch('/:id/findings/:findingId/action', async (req: Request, res: Respon
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Finding action error:', err);
+    logger.error({ err, tenantId, userId }, 'Finding action error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update finding' } });
   }
 });
@@ -641,7 +642,7 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
 
     return res.json({ data: { ...updated, approval: { approvedBy: userId, approvedAt: updated.reviewCompletedAt } } });
   } catch (err) {
-    console.error('Approve review error:', err);
+    logger.error({ err, tenantId, userId }, 'Approve review error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to approve' } });
   }
 });
@@ -698,7 +699,7 @@ router.post('/:id/return', async (req: Request, res: Response) => {
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Return review error:', err);
+    logger.error({ err, tenantId, userId }, 'Return review error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to return review' } });
   }
 });
@@ -746,7 +747,7 @@ router.post('/:id/escalate', async (req: Request, res: Response) => {
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Escalate review error:', err);
+    logger.error({ err, tenantId, userId }, 'Escalate review error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to escalate review' } });
   }
 });
@@ -809,7 +810,7 @@ router.get('/:id/export', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Export review error:', err);
+    logger.error({ err, tenantId, userId }, 'Export review error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to export review' } });
   }
 });

@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -56,7 +57,7 @@ router.get('/config', requireRole('owner'), async (req: Request, res: Response) 
 
     return res.json({ data: config });
   } catch (err) {
-    console.error('Get white-label config error:', err);
+    logger.error({ err, tenantId }, 'Get white-label config error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get white-label config' } });
   }
 });
@@ -101,7 +102,7 @@ router.patch('/config', requireRole('owner'), async (req: Request, res: Response
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Update white-label config error:', err);
+    logger.error({ err, tenantId, userId }, 'Update white-label config error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update white-label config' } });
   }
 });
@@ -165,7 +166,7 @@ router.post('/custom-domain', requireRole('owner'), async (req: Request, res: Re
     if (err.code === '23505') {
       return res.status(409).json({ error: { code: 'CONFLICT', message: 'This custom domain is already in use' } });
     }
-    console.error('Set custom domain error:', err);
+    logger.error({ err, tenantId, userId }, 'Set custom domain error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to set custom domain' } });
   }
 });
@@ -205,7 +206,7 @@ router.post('/custom-domain/verify', requireRole('owner'), async (req: Request, 
       },
     });
   } catch (err) {
-    console.error('Verify custom domain error:', err);
+    logger.error({ err, tenantId, userId }, 'Verify custom domain error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to verify custom domain' } });
   }
 });
@@ -250,7 +251,7 @@ router.delete('/custom-domain', requireRole('owner'), async (req: Request, res: 
 
     return res.json({ data: { removed: true } });
   } catch (err) {
-    console.error('Remove custom domain error:', err);
+    logger.error({ err, tenantId, userId }, 'Remove custom domain error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to remove custom domain' } });
   }
 });
@@ -279,7 +280,7 @@ router.get('/embed-settings', requireRole('owner'), async (req: Request, res: Re
 
     return res.json({ data: config });
   } catch (err) {
-    console.error('Get embed settings error:', err);
+    logger.error({ err, tenantId }, 'Get embed settings error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get embed settings' } });
   }
 });
@@ -326,7 +327,7 @@ router.patch('/embed-settings', requireRole('owner'), async (req: Request, res: 
       },
     });
   } catch (err) {
-    console.error('Update embed settings error:', err);
+    logger.error({ err, tenantId, userId }, 'Update embed settings error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update embed settings' } });
   }
 });

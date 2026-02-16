@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -18,7 +19,7 @@ router.get('/rules', requireRole('principal_broker'), async (req: Request, res: 
 
     return res.json({ data: rules, total: rules.length });
   } catch (err) {
-    console.error('List breach rules error:', err);
+    logger.error({ err, tenantId }, 'List breach rules error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list breach notification rules' } });
   }
 });
@@ -37,7 +38,7 @@ router.get('/rules/:stateCode', requireRole('principal_broker'), async (req: Req
 
     return res.json({ data: rule });
   } catch (err) {
-    console.error('Get breach rule error:', err);
+    logger.error({ err, tenantId }, 'Get breach rule error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get breach rule' } });
   }
 });
@@ -75,7 +76,7 @@ router.get('/incidents', requireRole('principal_broker'), async (req: Request, r
       pagination: { page, limit, total: result.total, pages: Math.ceil(result.total / limit) },
     });
   } catch (err) {
-    console.error('List breach incidents error:', err);
+    logger.error({ err, tenantId }, 'List breach incidents error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list breach incidents' } });
   }
 });
@@ -119,7 +120,7 @@ router.post('/incidents', requireRole('owner'), async (req: Request, res: Respon
 
     return res.status(201).json({ data: incident });
   } catch (err) {
-    console.error('Create breach incident error:', err);
+    logger.error({ err, tenantId, userId }, 'Create breach incident error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create breach incident' } });
   }
 });
@@ -156,7 +157,7 @@ router.get('/incidents/:id', requireRole('principal_broker'), async (req: Reques
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Get breach incident error:', err);
+    logger.error({ err, tenantId }, 'Get breach incident error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get breach incident' } });
   }
 });
@@ -204,7 +205,7 @@ router.patch('/incidents/:id', requireRole('owner'), async (req: Request, res: R
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Update breach incident error:', err);
+    logger.error({ err, tenantId, userId }, 'Update breach incident error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update breach incident' } });
   }
 });
@@ -235,7 +236,7 @@ router.delete('/incidents/:id', requireRole('owner'), async (req: Request, res: 
 
     return res.json({ data: { deleted: true } });
   } catch (err) {
-    console.error('Delete breach incident error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete breach incident error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete breach incident' } });
   }
 });
@@ -323,7 +324,7 @@ router.post('/incidents/:id/notifications', requireRole('owner'), async (req: Re
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Generate breach notifications error:', err);
+    logger.error({ err, tenantId, userId }, 'Generate breach notifications error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to generate breach notifications' } });
   }
 });
@@ -364,7 +365,7 @@ router.patch('/incidents/:id/notifications/:nid', requireRole('owner'), async (r
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Update breach notification error:', err);
+    logger.error({ err, tenantId, userId }, 'Update breach notification error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update breach notification' } });
   }
 });
@@ -406,7 +407,7 @@ router.get('/incidents/stats', requireRole('principal_broker'), async (req: Requ
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error('Breach incidents stats error:', err);
+    logger.error({ err, tenantId }, 'Breach incidents stats error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get breach incident stats' } });
   }
 });

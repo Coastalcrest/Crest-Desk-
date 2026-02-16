@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -89,7 +90,7 @@ router.get('/sequences', async (req: Request, res: Response) => {
 
     return res.json({ data: sequences });
   } catch (err) {
-    console.error('List sequences error:', err);
+    logger.error({ err, tenantId }, 'List sequences error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list follow-up sequences' } });
   }
 });
@@ -152,7 +153,7 @@ router.post('/sequences', async (req: Request, res: Response) => {
 
     return res.status(201).json(sequence);
   } catch (err) {
-    console.error('Create sequence error:', err);
+    logger.error({ err, tenantId, userId }, 'Create sequence error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create follow-up sequence' } });
   }
 });
@@ -198,7 +199,7 @@ router.get('/sequences/:id', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Get sequence error:', err);
+    logger.error({ err, tenantId }, 'Get sequence error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get follow-up sequence' } });
   }
 });
@@ -264,7 +265,7 @@ router.patch('/sequences/:id', async (req: Request, res: Response) => {
 
     return res.json(sequence);
   } catch (err) {
-    console.error('Update sequence error:', err);
+    logger.error({ err, tenantId, userId }, 'Update sequence error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update follow-up sequence' } });
   }
 });
@@ -302,7 +303,7 @@ router.delete('/sequences/:id', async (req: Request, res: Response) => {
 
     return res.status(204).send();
   } catch (err) {
-    console.error('Deactivate sequence error:', err);
+    logger.error({ err, tenantId, userId }, 'Deactivate sequence error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to deactivate follow-up sequence' } });
   }
 });
@@ -379,7 +380,7 @@ router.get('/enrollments', async (req: Request, res: Response) => {
 
     return res.json({ data: enrollments, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
-    console.error('List enrollments error:', err);
+    logger.error({ err, tenantId }, 'List enrollments error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list enrollments' } });
   }
 });
@@ -456,7 +457,7 @@ router.post('/enrollments', async (req: Request, res: Response) => {
 
     return res.status(201).json(enrollment);
   } catch (err) {
-    console.error('Enroll contact error:', err);
+    logger.error({ err, tenantId, userId }, 'Enroll contact error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to enroll contact' } });
   }
 });
@@ -498,7 +499,7 @@ router.patch('/enrollments/:id/pause', async (req: Request, res: Response) => {
 
     return res.json(enrollment);
   } catch (err) {
-    console.error('Pause enrollment error:', err);
+    logger.error({ err, tenantId, userId }, 'Pause enrollment error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to pause enrollment' } });
   }
 });
@@ -563,7 +564,7 @@ router.patch('/enrollments/:id/resume', async (req: Request, res: Response) => {
 
     return res.json(enrollment);
   } catch (err) {
-    console.error('Resume enrollment error:', err);
+    logger.error({ err, tenantId, userId }, 'Resume enrollment error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to resume enrollment' } });
   }
 });
@@ -607,7 +608,7 @@ router.patch('/enrollments/:id/cancel', async (req: Request, res: Response) => {
 
     return res.json(enrollment);
   } catch (err) {
-    console.error('Cancel enrollment error:', err);
+    logger.error({ err, tenantId, userId }, 'Cancel enrollment error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to cancel enrollment' } });
   }
 });
@@ -723,7 +724,7 @@ router.post('/enrollments/process-due', requireRole('managing_broker'), async (r
 
     return res.json({ data: { processed, messages_created: messagesCreated } });
   } catch (err) {
-    console.error('Process due enrollments error:', err);
+    logger.error({ err, tenantId }, 'Process due enrollments error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to process due follow-up steps' } });
   }
 });
@@ -783,7 +784,7 @@ router.get('/messages', async (req: Request, res: Response) => {
 
     return res.json({ data: messages, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
-    console.error('List messages error:', err);
+    logger.error({ err, tenantId, userId }, 'List messages error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list follow-up messages' } });
   }
 });
@@ -864,7 +865,7 @@ router.patch('/messages/:id/status', async (req: Request, res: Response) => {
 
     return res.json(message);
   } catch (err) {
-    console.error('Update message status error:', err);
+    logger.error({ err, tenantId, userId }, 'Update message status error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update message status' } });
   }
 });
@@ -950,7 +951,7 @@ router.get('/analytics', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Follow-up analytics error:', err);
+    logger.error({ err, tenantId }, 'Follow-up analytics error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get follow-up analytics' } });
   }
 });

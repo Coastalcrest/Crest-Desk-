@@ -4,6 +4,7 @@ import { db, withTenantContext } from '../lib/db';
 import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -346,7 +347,7 @@ router.post('/pre-review/:transactionId', async (req: Request, res: Response) =>
       },
     });
   } catch (err) {
-    console.error('AI pre-review error:', err);
+    logger.error({ err, tenantId, userId }, 'AI pre-review error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to run AI pre-review' } });
   }
 });
@@ -375,7 +376,7 @@ router.get('/coaching/:agentUserId', async (req: Request, res: Response) => {
 
     return res.json({ data: insights });
   } catch (err) {
-    console.error('Get coaching insights error:', err);
+    logger.error({ err, tenantId }, 'Get coaching insights error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get coaching insights' } });
   }
 });
@@ -502,7 +503,7 @@ router.post('/coaching/generate/:agentUserId', async (req: Request, res: Respons
 
     return res.json({ data: generatedInsights });
   } catch (err) {
-    console.error('Generate coaching insights error:', err);
+    logger.error({ err, tenantId, userId }, 'Generate coaching insights error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to generate coaching insights' } });
   }
 });
@@ -568,7 +569,7 @@ router.post('/feedback', async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: feedback });
   } catch (err) {
-    console.error('Submit AI feedback error:', err);
+    logger.error({ err, tenantId, userId }, 'Submit AI feedback error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to submit AI review feedback' } });
   }
 });

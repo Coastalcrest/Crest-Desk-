@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -70,7 +71,7 @@ router.get('/1099-report', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('1099 report error:', err);
+    logger.error({ err, tenantId }, '1099 report error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to generate 1099 report' } });
   }
 });
@@ -156,7 +157,7 @@ router.get('/', async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('List vendors error:', err);
+    logger.error({ err, tenantId }, 'List vendors error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list vendors' } });
   }
 });
@@ -213,7 +214,7 @@ router.post('/', requireRole('managing_broker'), async (req: Request, res: Respo
 
     return res.status(201).json({ data: vendor });
   } catch (err) {
-    console.error('Create vendor error:', err);
+    logger.error({ err, tenantId, userId }, 'Create vendor error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create vendor' } });
   }
 });
@@ -274,7 +275,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Get vendor error:', err);
+    logger.error({ err, tenantId }, 'Get vendor error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get vendor' } });
   }
 });
@@ -341,7 +342,7 @@ router.patch('/:id', requireRole('managing_broker'), async (req: Request, res: R
 
     return res.json({ data: vendor });
   } catch (err) {
-    console.error('Update vendor error:', err);
+    logger.error({ err, tenantId, userId }, 'Update vendor error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update vendor' } });
   }
 });
@@ -428,7 +429,7 @@ router.get('/:id/payments', async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('Vendor payments error:', err);
+    logger.error({ err, tenantId }, 'Vendor payments error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get vendor payments' } });
   }
 });

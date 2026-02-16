@@ -5,6 +5,7 @@ import * as schema from "../lib/schema";
 import { requireAuth } from "../middleware/auth";
 import { requireRole } from "../lib/permissions";
 import { logAudit } from "../lib/audit";
+import { logger } from '../lib/logger';
 
 const VALID_EXPENSE_CATEGORIES = [
   "photography",
@@ -129,7 +130,7 @@ router.get("/", async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error("List expenses error:", err);
+    logger.error({ err, tenantId, userId }, 'List expenses error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list expenses" } });
   }
 });
@@ -207,7 +208,7 @@ router.get("/stats", async (req: Request, res: Response) => {
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error("Expense stats error:", err);
+    logger.error({ err, tenantId }, 'Expense stats error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get expense stats" } });
   }
 });
@@ -288,7 +289,7 @@ router.get("/by-deal/:dealId", async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error("Get deal expenses error:", err);
+    logger.error({ err, tenantId }, 'Get deal expenses error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get deal expenses" } });
   }
 });
@@ -365,7 +366,7 @@ router.get("/by-agent/:agentId", async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error("Get agent expenses error:", err);
+    logger.error({ err, tenantId }, 'Get agent expenses error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get agent expenses" } });
   }
 });
@@ -464,7 +465,7 @@ router.post("/bulk-upload", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("Bulk upload expenses error:", err);
+    logger.error({ err, tenantId, userId }, 'Bulk upload expenses error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to bulk upload expenses" } });
   }
 });
@@ -584,7 +585,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     return res.status(201).json({ data: (result as any).expense });
   } catch (err) {
-    console.error("Create expense error:", err);
+    logger.error({ err, tenantId, userId }, 'Create expense error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create expense" } });
   }
 });
@@ -640,7 +641,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
     return res.json({ data: expense });
   } catch (err) {
-    console.error("Get expense error:", err);
+    logger.error({ err, tenantId }, 'Get expense error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get expense" } });
   }
 });
@@ -711,7 +712,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
 
     return res.json({ data: expense });
   } catch (err) {
-    console.error("Update expense error:", err);
+    logger.error({ err, tenantId, userId }, 'Update expense error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update expense" } });
   }
 });
@@ -750,7 +751,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
 
     return res.status(204).send();
   } catch (err) {
-    console.error("Delete expense error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete expense error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete expense" } });
   }
 });
@@ -794,7 +795,7 @@ router.post("/:id/mark-paid", async (req: Request, res: Response) => {
 
     return res.json({ data: expense });
   } catch (err) {
-    console.error("Mark expense paid error:", err);
+    logger.error({ err, tenantId, userId }, 'Mark expense paid error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to mark expense as paid" } });
   }
 });
@@ -844,7 +845,7 @@ router.post("/:id/sync-to-qb", async (req: Request, res: Response) => {
 
     return res.json({ data: expense });
   } catch (err) {
-    console.error("Sync expense to QB error:", err);
+    logger.error({ err, tenantId, userId }, 'Sync expense to QB error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to sync expense to QuickBooks" } });
   }
 });

@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -99,7 +100,7 @@ router.get('/commission-dashboard', async (req: Request, res: Response) => {
 
     return res.json({ data: dashboard });
   } catch (err) {
-    console.error('Commission dashboard error:', err);
+    logger.error({ err, tenantId }, 'Commission dashboard error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get commission dashboard' } });
   }
 });
@@ -200,7 +201,7 @@ router.get('/expense-summary', async (req: Request, res: Response) => {
 
     return res.json({ data: summary });
   } catch (err) {
-    console.error('Expense summary error:', err);
+    logger.error({ err, tenantId }, 'Expense summary error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get expense summary' } });
   }
 });
@@ -278,7 +279,7 @@ router.get('/agent-billing', async (req: Request, res: Response) => {
 
     return res.json({ data: report });
   } catch (err) {
-    console.error('Agent billing report error:', err);
+    logger.error({ err, tenantId }, 'Agent billing report error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get agent billing report' } });
   }
 });
@@ -361,7 +362,7 @@ router.get('/pl-by-office', async (req: Request, res: Response) => {
 
     return res.json({ data: pl });
   } catch (err) {
-    console.error('P&L report error:', err);
+    logger.error({ err, tenantId }, 'P&L report error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get P&L report' } });
   }
 });
@@ -454,7 +455,7 @@ router.get('/tax-prep', async (req: Request, res: Response) => {
 
     return res.json({ data: taxPrep });
   } catch (err) {
-    console.error('Tax prep report error:', err);
+    logger.error({ err, tenantId }, 'Tax prep report error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get tax prep report' } });
   }
 });
@@ -560,7 +561,7 @@ router.get('/reconciliation', async (req: Request, res: Response) => {
 
     return res.json({ data: reconciliation });
   } catch (err) {
-    console.error('Reconciliation report error:', err);
+    logger.error({ err, tenantId }, 'Reconciliation report error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get reconciliation report' } });
   }
 });

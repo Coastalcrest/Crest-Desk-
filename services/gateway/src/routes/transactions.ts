@@ -8,6 +8,7 @@ import { logAudit } from '../lib/audit';
 import { validateBody, validateQuery } from '../middleware/validate';
 import { createTransactionSchema, updateTransactionSchema, listTransactionsQuery } from '../schemas/transactions';
 import { sendData, sendPaginated, sendError } from '../lib/response';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -43,7 +44,7 @@ router.post('/', validateBody(createTransactionSchema), async (req: Request, res
 
     sendData(res, txn, 201);
   } catch (err) {
-    console.error('Create transaction error:', err);
+    logger.error({ err, tenantId, userId }, 'Create transaction error');
     sendError(res, 500, 'INTERNAL_ERROR', 'Failed to create transaction');
   }
 });
@@ -86,7 +87,7 @@ router.get('/', validateQuery(listTransactionsQuery), async (req: Request, res: 
 
     sendPaginated(res, transactions, { page, pageSize, total });
   } catch (err) {
-    console.error('List transactions error:', err);
+    logger.error({ err, tenantId }, 'List transactions error');
     sendError(res, 500, 'INTERNAL_ERROR', 'Failed to list transactions');
   }
 });
@@ -112,7 +113,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     sendData(res, txn);
   } catch (err) {
-    console.error('Get transaction error:', err);
+    logger.error({ err, tenantId }, 'Get transaction error');
     sendError(res, 500, 'INTERNAL_ERROR', 'Failed to get transaction');
   }
 });
@@ -158,7 +159,7 @@ router.patch('/:id', validateBody(updateTransactionSchema), async (req: Request,
 
     sendData(res, txn);
   } catch (err) {
-    console.error('Update transaction error:', err);
+    logger.error({ err, tenantId, userId }, 'Update transaction error');
     sendError(res, 500, 'INTERNAL_ERROR', 'Failed to update transaction');
   }
 });
@@ -188,7 +189,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     return res.status(204).send();
   } catch (err) {
-    console.error('Delete transaction error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete transaction error');
     sendError(res, 500, 'INTERNAL_ERROR', 'Failed to delete transaction');
   }
 });

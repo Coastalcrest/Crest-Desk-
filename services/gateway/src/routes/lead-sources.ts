@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -76,7 +77,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     return res.json({ data: sources });
   } catch (err) {
-    console.error('List lead sources error:', err);
+    logger.error({ err, tenantId }, 'List lead sources error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list lead sources' } });
   }
 });
@@ -147,7 +148,7 @@ router.post('/', requireRole('managing_broker'), async (req: Request, res: Respo
 
     return res.status(201).json(source);
   } catch (err) {
-    console.error('Create lead source error:', err);
+    logger.error({ err, tenantId, userId }, 'Create lead source error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create lead source' } });
   }
 });
@@ -208,7 +209,7 @@ router.patch('/:id', requireRole('managing_broker'), async (req: Request, res: R
 
     return res.json(source);
   } catch (err) {
-    console.error('Update lead source error:', err);
+    logger.error({ err, tenantId, userId }, 'Update lead source error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update lead source' } });
   }
 });
@@ -402,7 +403,7 @@ router.post('/ingest', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Ingest lead error:', err);
+    logger.error({ err, tenantId, userId }, 'Ingest lead error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to ingest lead' } });
   }
 });
@@ -491,7 +492,7 @@ router.get('/:id/performance', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Lead source performance error:', err);
+    logger.error({ err, tenantId }, 'Lead source performance error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get lead source performance' } });
   }
 });

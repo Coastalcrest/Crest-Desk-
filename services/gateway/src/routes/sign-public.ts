@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../lib/db';
 import * as schema from '../lib/schema';
 import crypto from 'crypto';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -117,7 +118,7 @@ router.get('/:token', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Load signing page error:', err);
+    logger.error({ err }, 'Load signing page error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to load signing page' } });
   }
 });
@@ -149,7 +150,7 @@ router.post('/:token/mark-as-opened', async (req: Request, res: Response) => {
 
     return res.json({ success: true, opened_at: request.openedAt || new Date().toISOString() });
   } catch (err) {
-    console.error('Mark as opened error:', err);
+    logger.error({ err }, 'Mark as opened error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to mark as opened' } });
   }
 });
@@ -233,7 +234,7 @@ router.post('/:token/signature', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Submit signature error:', err);
+    logger.error({ err }, 'Submit signature error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to submit signature' } });
   }
 });
@@ -303,7 +304,7 @@ router.post('/:token/complete', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Complete signing error:', err);
+    logger.error({ err }, 'Complete signing error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to complete signing' } });
   }
 });
@@ -335,7 +336,7 @@ router.post('/:token/decline', async (req: Request, res: Response) => {
 
     return res.json({ success: true, status: 'declined' });
   } catch (err) {
-    console.error('Decline signing error:', err);
+    logger.error({ err }, 'Decline signing error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to decline signing' } });
   }
 });

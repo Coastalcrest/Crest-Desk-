@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -36,7 +37,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     return res.json({ data: forms });
   } catch (err) {
-    console.error('List forms error:', err);
+    logger.error({ err, tenantId }, 'List forms error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list forms' } });
   }
 });
@@ -61,7 +62,7 @@ router.get('/state/:state', async (req: Request, res: Response) => {
 
     return res.json({ data: forms });
   } catch (err) {
-    console.error('List state forms error:', err);
+    logger.error({ err, tenantId }, 'List state forms error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list forms' } });
   }
 });
@@ -88,7 +89,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json(form);
   } catch (err) {
-    console.error('Get form error:', err);
+    logger.error({ err, tenantId }, 'Get form error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get form' } });
   }
 });
@@ -131,7 +132,7 @@ router.post('/', requireRole('principal_broker'), async (req: Request, res: Resp
     if (err.code === '23505') {
       return res.status(409).json({ error: { code: 'CONFLICT', message: 'A form with this key already exists' } });
     }
-    console.error('Create form error:', err);
+    logger.error({ err, tenantId, userId }, 'Create form error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create form' } });
   }
 });
@@ -174,7 +175,7 @@ router.patch('/:id', requireRole('principal_broker'), async (req: Request, res: 
 
     return res.json(form);
   } catch (err) {
-    console.error('Update form error:', err);
+    logger.error({ err, tenantId, userId }, 'Update form error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update form' } });
   }
 });
@@ -213,7 +214,7 @@ router.post('/instances', async (req: Request, res: Response) => {
 
     return res.status(201).json(instance);
   } catch (err) {
-    console.error('Create form instance error:', err);
+    logger.error({ err, tenantId, userId }, 'Create form instance error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create form instance' } });
   }
 });
@@ -238,7 +239,7 @@ router.get('/instances/:id', async (req: Request, res: Response) => {
 
     return res.json(instance);
   } catch (err) {
-    console.error('Get form instance error:', err);
+    logger.error({ err, tenantId }, 'Get form instance error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get form instance' } });
   }
 });
@@ -274,7 +275,7 @@ router.patch('/instances/:id', async (req: Request, res: Response) => {
 
     return res.json(instance);
   } catch (err) {
-    console.error('Update form instance error:', err);
+    logger.error({ err, tenantId, userId }, 'Update form instance error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update form instance' } });
   }
 });
@@ -296,7 +297,7 @@ router.get('/instances/transaction/:txnId', async (req: Request, res: Response) 
 
     return res.json({ data: instances });
   } catch (err) {
-    console.error('List transaction form instances error:', err);
+    logger.error({ err, tenantId }, 'List transaction form instances error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list form instances' } });
   }
 });
@@ -358,7 +359,7 @@ router.post('/instances/:id/validate', async (req: Request, res: Response) => {
       readyForSignature: isComplete && !instance.isSentForSignature,
     });
   } catch (err) {
-    console.error('Validate form instance error:', err);
+    logger.error({ err, tenantId }, 'Validate form instance error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to validate form instance' } });
   }
 });

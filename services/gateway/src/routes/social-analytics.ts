@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -30,7 +31,7 @@ router.get("/accounts", async (req: Request, res: Response) => {
     });
     return res.json({ data: accounts });
   } catch (err) {
-    console.error("List social accounts error:", err);
+    logger.error({ err, tenantId, userId }, 'List social accounts error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list social accounts" } });
   }
 });
@@ -62,7 +63,7 @@ router.post("/accounts", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: account });
   } catch (err) {
-    console.error("Connect social account error:", err);
+    logger.error({ err, tenantId, userId }, 'Connect social account error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to connect social account" } });
   }
 });
@@ -95,7 +96,7 @@ router.patch("/accounts/:id", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: account });
   } catch (err) {
-    console.error("Update social account error:", err);
+    logger.error({ err, tenantId, userId }, 'Update social account error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update social account" } });
   }
 });
@@ -116,7 +117,7 @@ router.delete("/accounts/:id", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, disconnected: true } });
   } catch (err) {
-    console.error("Disconnect social account error:", err);
+    logger.error({ err, tenantId, userId }, 'Disconnect social account error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to disconnect social account" } });
   }
 });
@@ -145,7 +146,7 @@ router.post("/accounts/:id/refresh", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { account, tokenRefreshed: true, expiresAt: newExpiry } });
   } catch (err) {
-    console.error("Refresh token error:", err);
+    logger.error({ err, tenantId, userId }, 'Refresh token error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to refresh token" } });
   }
 });
@@ -172,7 +173,7 @@ router.get("/accounts/:id/health", async (req: Request, res: Response) => {
       tokenExpiresAt: account.tokenExpiresAt, lastSyncAt: account.lastSyncAt,
     } });
   } catch (err) {
-    console.error("Account health check error:", err);
+    logger.error({ err, tenantId }, 'Account health check error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to check account health" } });
   }
 });
@@ -194,7 +195,7 @@ router.get("/engagement/:postId", async (req: Request, res: Response) => {
     });
     return res.json({ data: metrics });
   } catch (err) {
-    console.error("Get engagement error:", err);
+    logger.error({ err, tenantId }, 'Get engagement error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get engagement metrics" } });
   }
 });
@@ -248,7 +249,7 @@ router.get("/engagement/summary", async (req: Request, res: Response) => {
     });
     return res.json({ data: result });
   } catch (err) {
-    console.error("Engagement summary error:", err);
+    logger.error({ err, tenantId }, 'Engagement summary error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get engagement summary" } });
   }
 });
@@ -278,7 +279,7 @@ router.get("/engagement/trends", async (req: Request, res: Response) => {
     });
     return res.json({ data: trends });
   } catch (err) {
-    console.error("Engagement trends error:", err);
+    logger.error({ err, tenantId }, 'Engagement trends error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get engagement trends" } });
   }
 });
@@ -313,7 +314,7 @@ router.get("/campaigns", async (req: Request, res: Response) => {
     const total = (countRes[0]?.total as number) ?? 0;
     return res.json({ data: campaigns, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
-    console.error("List campaigns error:", err);
+    logger.error({ err, tenantId }, 'List campaigns error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list campaigns" } });
   }
 });
@@ -341,7 +342,7 @@ router.post("/campaigns", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: campaign });
   } catch (err) {
-    console.error("Create campaign error:", err);
+    logger.error({ err, tenantId, userId }, 'Create campaign error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create campaign" } });
   }
 });
@@ -372,7 +373,7 @@ router.get("/campaigns/:id", async (req: Request, res: Response) => {
     if (!result) return res.status(404).json({ error: { code: "NOT_FOUND", message: "Campaign not found" } });
     return res.json({ data: result });
   } catch (err) {
-    console.error("Get campaign error:", err);
+    logger.error({ err, tenantId }, 'Get campaign error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get campaign" } });
   }
 });
@@ -400,7 +401,7 @@ router.patch("/campaigns/:id", async (req: Request, res: Response) => {
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: campaign });
   } catch (err) {
-    console.error("Update campaign error:", err);
+    logger.error({ err, tenantId, userId }, 'Update campaign error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update campaign" } });
   }
 });
@@ -420,7 +421,7 @@ router.delete("/campaigns/:id", async (req: Request, res: Response) => {
       resourceId: id, details: { name: campaign.name }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete campaign error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete campaign error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete campaign" } });
   }
 });
@@ -441,7 +442,7 @@ router.get("/content-rules", async (req: Request, res: Response) => {
     });
     return res.json({ data: rules });
   } catch (err) {
-    console.error("List content rules error:", err);
+    logger.error({ err, tenantId }, 'List content rules error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list content rules" } });
   }
 });
@@ -471,7 +472,7 @@ router.post("/content-rules", requireRole("managing_broker"), async (req: Reques
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: rule });
   } catch (err) {
-    console.error("Create content rule error:", err);
+    logger.error({ err, tenantId, userId }, 'Create content rule error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to create content rule" } });
   }
 });
@@ -499,7 +500,7 @@ router.patch("/content-rules/:id", requireRole("managing_broker"), async (req: R
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: rule });
   } catch (err) {
-    console.error("Update content rule error:", err);
+    logger.error({ err, tenantId, userId }, 'Update content rule error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update content rule" } });
   }
 });
@@ -519,7 +520,7 @@ router.delete("/content-rules/:id", requireRole("managing_broker"), async (req: 
       resourceId: id, details: { ruleType: rule.ruleType }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete content rule error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete content rule error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete content rule" } });
   }
 });
@@ -570,7 +571,7 @@ router.get("/roi", async (req: Request, res: Response) => {
     });
     return res.json({ data: result });
   } catch (err) {
-    console.error("ROI attribution error:", err);
+    logger.error({ err, tenantId }, 'ROI attribution error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get ROI attribution" } });
   }
 });

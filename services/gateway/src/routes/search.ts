@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -92,7 +93,7 @@ router.get('/', async (req: Request, res: Response) => {
       pagination: { page, limit, total: results.total, pages: Math.ceil(results.total / limit) },
     });
   } catch (err) {
-    console.error('Search error:', err);
+    logger.error({ err, tenantId }, 'Search error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to perform search' } });
   }
 });
@@ -125,7 +126,7 @@ router.get('/suggestions', async (req: Request, res: Response) => {
 
     return res.json({ data: suggestions, total: suggestions.length });
   } catch (err) {
-    console.error('Search suggestions error:', err);
+    logger.error({ err, tenantId }, 'Search suggestions error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get suggestions' } });
   }
 });
@@ -294,7 +295,7 @@ router.post('/reindex', requireRole('managing_broker'), async (req: Request, res
 
     return res.json({ data: { indexed: result } });
   } catch (err) {
-    console.error('Reindex search error:', err);
+    logger.error({ err, tenantId, userId }, 'Reindex search error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to rebuild search index' } });
   }
 });

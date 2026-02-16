@@ -6,6 +6,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -30,7 +31,7 @@ router.get('/', requireRole('owner'), async (req: Request, res: Response) => {
     });
     return res.json({ data: keys, total: keys.length });
   } catch (err) {
-    console.error('List API keys error:', err);
+    logger.error({ err, tenantId }, 'List API keys error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list API keys' } });
   }
 });
@@ -80,7 +81,7 @@ router.post('/', requireRole('owner'), async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Create API key error:', err);
+    logger.error({ err, tenantId, userId }, 'Create API key error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create API key' } });
   }
 });
@@ -113,7 +114,7 @@ router.get('/:id', requireRole('owner'), async (req: Request, res: Response) => 
 
     return res.json({ data: key });
   } catch (err) {
-    console.error('Get API key error:', err);
+    logger.error({ err, tenantId }, 'Get API key error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get API key' } });
   }
 });
@@ -150,7 +151,7 @@ router.patch('/:id', requireRole('owner'), async (req: Request, res: Response) =
 
     return res.json({ data: { id: updated.id, name: updated.name, keyPrefix: updated.keyPrefix, scopes: updated.scopes, expiresAt: updated.expiresAt } });
   } catch (err) {
-    console.error('Update API key error:', err);
+    logger.error({ err, tenantId, userId }, 'Update API key error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update API key' } });
   }
 });
@@ -177,7 +178,7 @@ router.delete('/:id', requireRole('owner'), async (req: Request, res: Response) 
 
     return res.json({ data: { revoked: true } });
   } catch (err) {
-    console.error('Revoke API key error:', err);
+    logger.error({ err, tenantId, userId }, 'Revoke API key error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to revoke API key' } });
   }
 });

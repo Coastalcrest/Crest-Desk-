@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const ROLE_LEVEL: Record<string, number> = { agent: 0, managing_broker: 1, principal_broker: 2, owner: 3 };
 function hasMinRole(userRole: string, minRole: string): boolean {
@@ -198,7 +199,7 @@ router.get('/', async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('List copilot conversations error:', err);
+    logger.error({ err, tenantId, userId }, 'List copilot conversations error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list conversations' } });
   }
 });
@@ -271,7 +272,7 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Create copilot conversation error:', err);
+    logger.error({ err, tenantId, userId }, 'Create copilot conversation error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to start conversation' } });
   }
 });
@@ -308,7 +309,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json({ data: result });
   } catch (err) {
-    console.error('Get copilot conversation error:', err);
+    logger.error({ err, tenantId, userId }, 'Get copilot conversation error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get conversation' } });
   }
 });
@@ -391,7 +392,7 @@ router.post('/:id/messages', async (req: Request, res: Response) => {
       data: { userMessage: result.userMessage, aiMessage: result.aiMessage },
     });
   } catch (err) {
-    console.error('Send copilot message error:', err);
+    logger.error({ err, tenantId, userId }, 'Send copilot message error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to send message' } });
   }
 });
@@ -431,7 +432,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     return res.status(204).send();
   } catch (err) {
-    console.error('Delete copilot conversation error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete copilot conversation error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete conversation' } });
   }
 });
@@ -467,7 +468,7 @@ router.post('/query', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Copilot query error:', err);
+    logger.error({ err, tenantId, userId }, 'Copilot query error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to process query' } });
   }
 });
@@ -527,7 +528,7 @@ router.get('/deals/overview', async (req: Request, res: Response) => {
 
     return res.json({ data: overview, total: overview.length });
   } catch (err) {
-    console.error('Deals overview error:', err);
+    logger.error({ err, tenantId, userId }, 'Deals overview error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get deals overview' } });
   }
 });
@@ -637,7 +638,7 @@ router.get('/deals/:dealId/summary', async (req: Request, res: Response) => {
 
     return res.json({ data: summary });
   } catch (err) {
-    console.error('Deal summary error:', err);
+    logger.error({ err, tenantId }, 'Deal summary error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get deal summary' } });
   }
 });
@@ -674,7 +675,7 @@ router.get('/deadlines', async (req: Request, res: Response) => {
 
     return res.json({ data: deadlines, total: deadlines.length });
   } catch (err) {
-    console.error('Upcoming deadlines error:', err);
+    logger.error({ err, tenantId }, 'Upcoming deadlines error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get deadlines' } });
   }
 });
@@ -781,7 +782,7 @@ router.get('/alerts', async (req: Request, res: Response) => {
 
     return res.json({ data: alerts, total: alerts.length });
   } catch (err) {
-    console.error('Proactive alerts error:', err);
+    logger.error({ err, tenantId, userId }, 'Proactive alerts error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get alerts' } });
   }
 });
@@ -855,7 +856,7 @@ router.post('/:id/feedback', async (req: Request, res: Response) => {
 
     return res.json({ data: result.message });
   } catch (err) {
-    console.error('Message feedback error:', err);
+    logger.error({ err, tenantId, userId }, 'Message feedback error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to submit feedback' } });
   }
 });

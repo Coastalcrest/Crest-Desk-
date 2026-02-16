@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const ROLE_LEVEL: Record<string, number> = { agent: 0, managing_broker: 1, principal_broker: 2, owner: 3 };
 function hasMinRole(userRole: string, minRole: string): boolean {
@@ -92,7 +93,7 @@ router.get('/', async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error('List deals error:', err);
+    logger.error({ err, tenantId, userId }, 'List deals error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list deals' } });
   }
 });
@@ -157,7 +158,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     return res.json({ data: stats });
   } catch (err) {
-    console.error('Deal stats error:', err);
+    logger.error({ err, tenantId }, 'Deal stats error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get deal stats' } });
   }
 });
@@ -175,7 +176,7 @@ router.get('/stages', async (req: Request, res: Response) => {
 
     return res.json({ data: stages });
   } catch (err) {
-    console.error('List stages error:', err);
+    logger.error({ err, tenantId }, 'List stages error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list pipeline stages' } });
   }
 });
@@ -212,7 +213,7 @@ router.post('/stages', requireRole('managing_broker'), async (req: Request, res:
 
     return res.status(201).json(stage);
   } catch (err) {
-    console.error('Create stage error:', err);
+    logger.error({ err, tenantId, userId }, 'Create stage error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create pipeline stage' } });
   }
 });
@@ -297,7 +298,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     return res.status(201).json(result.deal);
   } catch (err) {
-    console.error('Create deal error:', err);
+    logger.error({ err, tenantId, userId }, 'Create deal error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create deal' } });
   }
 });
@@ -369,7 +370,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     return res.json(result);
   } catch (err) {
-    console.error('Get deal error:', err);
+    logger.error({ err, tenantId }, 'Get deal error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get deal' } });
   }
 });
@@ -477,7 +478,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     return res.json(result.deal);
   } catch (err) {
-    console.error('Update deal error:', err);
+    logger.error({ err, tenantId, userId }, 'Update deal error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update deal' } });
   }
 });
@@ -516,7 +517,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     return res.status(204).send();
   } catch (err) {
-    console.error('Delete deal error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete deal error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete deal' } });
   }
 });
@@ -608,7 +609,7 @@ router.patch('/:id/stage', async (req: Request, res: Response) => {
 
     return res.json(result.deal);
   } catch (err) {
-    console.error('Move deal stage error:', err);
+    logger.error({ err, tenantId, userId }, 'Move deal stage error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to move deal to new stage' } });
   }
 });

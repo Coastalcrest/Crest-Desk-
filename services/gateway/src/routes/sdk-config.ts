@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
 import { defaultLimiter } from '../middleware/rate-limiter';
+import { logger } from '../lib/logger';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.get('/public/:sdkKey', defaultLimiter, async (req: Request, res: Response
 
     return res.json({ data: config });
   } catch (err) {
-    console.error('Get public SDK config error:', err);
+    logger.error({ err }, 'Get public SDK config error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get SDK configuration' } });
   }
 });
@@ -57,7 +58,7 @@ router.get('/', requireRole('owner'), async (req: Request, res: Response) => {
 
     return res.json({ data: configs, total: configs.length });
   } catch (err) {
-    console.error('List SDK configs error:', err);
+    logger.error({ err, tenantId }, 'List SDK configs error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list SDK configurations' } });
   }
 });
@@ -93,7 +94,7 @@ router.post('/', requireRole('owner'), async (req: Request, res: Response) => {
     if (err.code === '23505') {
       return res.status(409).json({ error: { code: 'CONFLICT', message: 'SDK configuration conflict' } });
     }
-    console.error('Create SDK config error:', err);
+    logger.error({ err, tenantId, userId }, 'Create SDK config error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create SDK configuration' } });
   }
 });
@@ -131,7 +132,7 @@ router.patch('/:id', requireRole('owner'), async (req: Request, res: Response) =
 
     return res.json({ data: updated });
   } catch (err) {
-    console.error('Update SDK config error:', err);
+    logger.error({ err, tenantId, userId }, 'Update SDK config error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update SDK configuration' } });
   }
 });
@@ -157,7 +158,7 @@ router.delete('/:id', requireRole('owner'), async (req: Request, res: Response) 
 
     return res.json({ data: { deleted: true } });
   } catch (err) {
-    console.error('Delete SDK config error:', err);
+    logger.error({ err, tenantId, userId }, 'Delete SDK config error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete SDK configuration' } });
   }
 });

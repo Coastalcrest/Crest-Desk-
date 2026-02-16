@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
 import { validateBody, validateQuery } from '../middleware/validate';
+import { logger } from '../lib/logger';
 import {
   createBillingSchema,
   updateBillingSchema,
@@ -72,7 +73,7 @@ router.get('/outstanding', requireRole('managing_broker'), async (req: Request, 
 
     return res.json({ data: agingData });
   } catch (err) {
-    console.error('Outstanding balances error:', err);
+    logger.error({ err, tenantId }, 'Outstanding balances error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get outstanding balances' } });
   }
 });
@@ -140,7 +141,7 @@ router.get('/', validateQuery(listBillingQuery), async (req: Request, res: Respo
 
     sendPaginated(res, records, { page, pageSize, total });
   } catch (err) {
-    console.error('List billing error:', err);
+    logger.error({ err, tenantId }, 'List billing error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to list billing records' } });
   }
 });
@@ -195,7 +196,7 @@ router.post('/', requireRole('managing_broker'), validateBody(createBillingSchem
     if (message === 'AGENT_NOT_FOUND') {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Agent not found' } });
     }
-    console.error('Create billing error:', err);
+    logger.error({ err, tenantId, userId }, 'Create billing error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to create billing record' } });
   }
 });
@@ -239,7 +240,7 @@ router.patch('/:id', requireRole('managing_broker'), validateBody(updateBillingS
 
     return res.json({ data: record });
   } catch (err) {
-    console.error('Update billing error:', err);
+    logger.error({ err, tenantId, userId }, 'Update billing error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update billing record' } });
   }
 });
@@ -283,7 +284,7 @@ router.post('/:id/mark-paid', requireRole('managing_broker'), validateBody(markP
 
     return res.json({ data: record });
   } catch (err) {
-    console.error('Mark paid error:', err);
+    logger.error({ err, tenantId, userId }, 'Mark paid error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to mark billing as paid' } });
   }
 });
@@ -354,7 +355,7 @@ router.post('/generate-invoices', requireRole('managing_broker'), validateBody(g
 
     return res.status(201).json({ data: result });
   } catch (err) {
-    console.error('Generate invoices error:', err);
+    logger.error({ err, tenantId, userId }, 'Generate invoices error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to generate invoices' } });
   }
 });

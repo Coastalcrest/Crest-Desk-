@@ -5,6 +5,7 @@ import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { requireRole } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -51,7 +52,7 @@ router.get("/", async (req: Request, res: Response) => {
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (err) {
-    console.error("List media assets error:", err);
+    logger.error({ err, tenantId, userId }, 'List media assets error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to list media assets" } });
   }
 });
@@ -79,7 +80,7 @@ router.get("/stats", async (req: Request, res: Response) => {
     });
     return res.json({ data: stats });
   } catch (err) {
-    console.error("Media stats error:", err);
+    logger.error({ err, tenantId }, 'Media stats error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get media stats" } });
   }
 });
@@ -107,7 +108,7 @@ router.get("/compliance-queue", requireRole("managing_broker"), async (req: Requ
     const total = countRes[0]?.total ?? 0;
     return res.json({ data: assets, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (err) {
-    console.error("Compliance queue error:", err);
+    logger.error({ err, tenantId }, 'Compliance queue error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get compliance queue" } });
   }
 });
@@ -152,7 +153,7 @@ router.post("/generate-image", async (req: Request, res: Response) => {
     });
     return res.status(201).json({ data: updated });
   } catch (err) {
-    console.error("Generate image error:", err);
+    logger.error({ err, tenantId, userId }, 'Generate image error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to generate image" } });
   }
 });
@@ -202,7 +203,7 @@ router.post("/generate-video", async (req: Request, res: Response) => {
     });
     return res.status(201).json({ data: updated });
   } catch (err) {
-    console.error("Generate video error:", err);
+    logger.error({ err, tenantId, userId }, 'Generate video error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to generate video" } });
   }
 });
@@ -257,7 +258,7 @@ router.post("/batch-generate", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.status(201).json({ data: { assets: createdAssets, totalGenerated: createdAssets.length, transactionId } });
   } catch (err) {
-    console.error("Batch generate error:", err);
+    logger.error({ err, tenantId, userId }, 'Batch generate error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to batch generate media" } });
   }
 });
@@ -280,7 +281,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     }
     return res.json({ data: asset });
   } catch (err) {
-    console.error("Get media asset error:", err);
+    logger.error({ err, tenantId }, 'Get media asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to get media asset" } });
   }
 });
@@ -314,7 +315,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
       resourceId: id, details: updates, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: asset });
   } catch (err) {
-    console.error("Update media asset error:", err);
+    logger.error({ err, tenantId, userId }, 'Update media asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to update media asset" } });
   }
 });
@@ -340,7 +341,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
       resourceId: id, details: { title: asset.title }, ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: { id, deleted: true } });
   } catch (err) {
-    console.error("Delete media asset error:", err);
+    logger.error({ err, tenantId, userId }, 'Delete media asset error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to delete media asset" } });
   }
 });
@@ -391,7 +392,7 @@ router.post("/:id/compliance-check", async (req: Request, res: Response) => {
       totalChecks: issues.length, passedChecks: issues.filter((i) => i.passed).length,
       failedChecks: failedIssues.length, issues } } });
   } catch (err) {
-    console.error("Compliance check error:", err);
+    logger.error({ err, tenantId, userId }, 'Compliance check error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to run compliance check" } });
   }
 });
@@ -419,7 +420,7 @@ router.post("/:id/approve", requireRole("managing_broker"), async (req: Request,
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: asset });
   } catch (err) {
-    console.error("Approve media error:", err);
+    logger.error({ err, tenantId, userId }, 'Approve media error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to approve media asset" } });
   }
 });
@@ -452,7 +453,7 @@ router.post("/:id/publish", async (req: Request, res: Response) => {
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: asset });
   } catch (err) {
-    console.error("Publish media error:", err);
+    logger.error({ err, tenantId, userId }, 'Publish media error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to publish media asset" } });
   }
 });
@@ -484,7 +485,7 @@ router.post("/:id/reject", requireRole("managing_broker"), async (req: Request, 
       ipAddress: req.ip, userAgent: req.headers["user-agent"] });
     return res.json({ data: asset });
   } catch (err) {
-    console.error("Reject media error:", err);
+    logger.error({ err, tenantId, userId }, 'Reject media error');
     return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Failed to reject media asset" } });
   }
 });

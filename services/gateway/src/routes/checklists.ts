@@ -4,6 +4,7 @@ import { db, withTenantContext } from '../lib/db';
 import * as schema from '../lib/schema';
 import { requireAuth } from '../middleware/auth';
 import { logAudit } from '../lib/audit';
+import { logger } from '../lib/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -98,7 +99,7 @@ router.get('/transaction/:txnId', async (req: Request, res: Response) => {
 
     return res.json(checklist);
   } catch (err) {
-    console.error('Get checklist error:', err);
+    logger.error({ err, tenantId }, 'Get checklist error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get compliance checklist' } });
   }
 });
@@ -162,7 +163,7 @@ router.patch('/:id/item/:itemId', async (req: Request, res: Response) => {
 
     return res.json(updated);
   } catch (err) {
-    console.error('Update checklist item error:', err);
+    logger.error({ err, tenantId, userId }, 'Update checklist item error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update checklist item' } });
   }
 });
@@ -214,7 +215,7 @@ router.get('/:id/status', async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error('Get checklist status error:', err);
+    logger.error({ err, tenantId }, 'Get checklist status error');
     return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to get checklist status' } });
   }
 });
