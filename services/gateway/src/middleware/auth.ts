@@ -123,6 +123,9 @@ export async function authenticate(
   }
 }
 
+/** Alias for authenticate — used by route files */
+export const requireAuth = authenticate;
+
 /**
  * Permission-based authorization guard.
  * Checks whether req.user has ALL of the listed permissions.
