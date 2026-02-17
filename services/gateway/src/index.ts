@@ -65,10 +65,14 @@ const app = express();
 
 // ---- Middleware (order matters) --------------------------------- //
 
-// 1. CORS
+// 1. CORS — supports comma-separated origins for multiple subdomains
+const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+  .split(',')
+  .map((s) => s.trim());
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins,
     credentials: true,
   }),
 );

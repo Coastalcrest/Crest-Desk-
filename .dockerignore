@@ -1,0 +1,57 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build output
+.next
+**/dist
+**/.next
+
+# Version control
+.git
+.gitignore
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+apps/web/.env.local
+
+# IDE & OS
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db
+
+# Test & coverage
+coverage
+**/__tests__
+**/*.test.ts
+**/*.spec.ts
+.playwright
+
+# Turborepo
+.turbo
+
+# Services not deployed in initial launch
+services/ai-*
+services/esign
+services/media-encoder
+services/compliance
+services/preference-engine
+services/transactions
+services/crm
+services/documents
+services/notifications
+services/social
+services/billing
+
+# Terraform (AWS infra, not needed for Docker)
+infra/terraform
+
+# Misc
+*.log
+*.md
+!packages/db/migrations/*.sql
+LICENSE

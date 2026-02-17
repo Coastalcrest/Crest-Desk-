@@ -1,0 +1,23 @@
+# ------------------------------------------------------------------ #
+#  Database Migration & Seed Runner                                    #
+#  Runs all SQL migrations then seeds demo data.                       #
+#  Docker context must be the REPO ROOT.                               #
+#  Usage: docker compose run --rm migrate                              #
+# ------------------------------------------------------------------ #
+FROM node:20-alpine
+
+# argon2 (used by create-test-users.ts) requires native build tools
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+# Install dependencies from packages/db
+COPY packages/db/package.json ./
+RUN npm install
+
+# Copy migration files and seed scripts
+COPY packages/db/seeds/ ./seeds/
+COPY packages/db/migrations/ ./migrations/
+
+# Run migrations first, then seeds
+CMD ["sh", "-c", "npx tsx seeds/run-migrations.ts && npx tsx seeds/index.ts"]

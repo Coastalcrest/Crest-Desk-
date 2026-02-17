@@ -1,0 +1,146 @@
+###############################################################################
+# CrestDesk Production Docker Compose
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml logs -f gateway web
+#   docker compose -f docker-compose.prod.yml down
+#
+# Prerequisites:
+#   - .env file with production secrets (copy from .env.production.example)
+#   - Nginx + SSL configured on the host (see infra/nginx/app.conf)
+###############################################################################
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: crestdesk-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crestdesk}
+      POSTGRES_USER: ${POSTGRES_USER:-crestdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - crestdesk-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crestdesk} -d ${POSTGRES_DB:-crestdesk}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - crestdesk-net
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: crestdesk-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - crestdesk-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - crestdesk-net
+
+  # ---------------------------------------------------------------------------
+  # Database Migrations + Seeds (runs once then exits)
+  # ---------------------------------------------------------------------------
+  migrate:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.migrate
+    container_name: crestdesk-migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crestdesk}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-crestdesk}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - crestdesk-net
+
+  # ---------------------------------------------------------------------------
+  # Express Gateway (API)
+  # ---------------------------------------------------------------------------
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    container_name: crestdesk-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:4000"
+    environment:
+      NODE_ENV: production
+      GATEWAY_PORT: "4000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crestdesk}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-crestdesk}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://app.crestdesk.com}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DD_TRACE_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - crestdesk-net
+
+  # ---------------------------------------------------------------------------
+  # Next.js Frontend
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.crestdesk.com/api/v1}
+    container_name: crestdesk-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - crestdesk-net
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  crestdesk-net:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  crestdesk-postgres:
+  crestdesk-redis:
