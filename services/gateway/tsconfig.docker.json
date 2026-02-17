@@ -6,8 +6,12 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false,
+    "strict": false,
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false
   },
   "include": [
     "src/**/*.ts",
