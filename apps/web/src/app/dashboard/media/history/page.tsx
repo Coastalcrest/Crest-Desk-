@@ -6,6 +6,9 @@ import {
   Eye, CheckCircle, AlertTriangle, Clock, Filter,
   ArrowUpDown, TrendingUp, BarChart3, Share2, Calendar,
 } from 'lucide-react';
+import { addToast } from '../../../../hooks/use-toast';
+
+const comingSoon = (action: string) => addToast({ type: 'info', title: `${action}`, message: 'This action will be available in a future update.' });
 
 type MediaStatus = "published" | "draft" | "archived";
 type CompStatus = "passed" | "pending" | "failed";
@@ -95,10 +98,10 @@ export default function MediaHistoryPage() {
                       {item.platforms.length > 0 && (<div className="flex items-center gap-1 mt-1">{item.platforms.map((p) => (<span key={p} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-medium">{p}</span>))}</div>)}
                     </div>
                     <div className="flex items-center gap-1">
-                      <button className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg" title="View"><Eye className="w-4 h-4" /></button>
-                      <button className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg" title="Regenerate"><RefreshCw className="w-4 h-4" /></button>
-                      <button className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg" title="Download"><Download className="w-4 h-4" /></button>
-                      <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => comingSoon('View')} className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg" title="View"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => comingSoon('Regenerate')} className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg" title="Regenerate"><RefreshCw className="w-4 h-4" /></button>
+                      <button onClick={() => comingSoon('Download')} className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg" title="Download"><Download className="w-4 h-4" /></button>
+                      <button onClick={() => comingSoon('Delete')} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Delete"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
                 </div>

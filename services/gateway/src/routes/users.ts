@@ -6,6 +6,7 @@ import { authenticate } from '../middleware/auth';
 import { requireRole, getDefaultPermissions, resolvePermissions } from '../lib/permissions';
 import { logAudit } from '../lib/audit';
 import { sendInviteEmail } from '../lib/email';
+import { verifyPassword, hashPassword, validatePasswordStrength } from '../lib/password';
 import { logger } from '../lib/logger';
 import { AppError } from '../middleware/error-handler';
 import { z } from 'zod';
@@ -168,6 +169,7 @@ router.patch('/me', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/me/sessions', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
+    const currentIp = req.ip ?? req.headers['x-forwarded-for'] ?? '';
 
     const activeSessions = await db
       .select({
@@ -187,7 +189,18 @@ router.get('/me/sessions', async (req: Request, res: Response, next: NextFunctio
       )
       .orderBy(desc(sessions.createdAt));
 
-    res.json({ data: activeSessions });
+    // Format for frontend: deviceInfo as string, add isCurrent flag
+    const formatted = activeSessions.map((s, i) => ({
+      id: s.id,
+      deviceInfo: typeof s.deviceInfo === 'object' && s.deviceInfo
+        ? (s.deviceInfo as any).userAgent ?? (s.deviceInfo as any).browser ?? JSON.stringify(s.deviceInfo)
+        : String(s.deviceInfo ?? 'Unknown device'),
+      ipAddress: s.ipAddress,
+      createdAt: s.createdAt,
+      isCurrent: i === 0, // Most recent session is likely the current one
+    }));
+
+    res.json({ data: formatted });
   } catch (err) {
     next(err);
   }
@@ -232,6 +245,127 @@ router.delete('/me/sessions/:id', async (req: Request, res: Response, next: Next
     });
 
     res.json({ data: { success: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ------------------------------------------------------------------ //
+//  PATCH /api/v1/users/me/password                                    //
+// ------------------------------------------------------------------ //
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
+});
+
+router.patch('/me/password', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
+    // Fetch current password hash
+    const [user] = await db
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user?.passwordHash) {
+      throw new AppError(400, 'BAD_REQUEST', 'No password set for this account');
+    }
+
+    // Verify current password
+    const isValid = await verifyPassword(user.passwordHash, currentPassword);
+    if (!isValid) {
+      throw new AppError(401, 'INVALID_PASSWORD', 'Current password is incorrect');
+    }
+
+    // Validate new password strength
+    const strengthError = validatePasswordStrength(newPassword);
+    if (strengthError) {
+      throw new AppError(400, 'WEAK_PASSWORD', strengthError);
+    }
+
+    // Hash and update
+    const newHash = await hashPassword(newPassword);
+    await db
+      .update(users)
+      .set({ passwordHash: newHash, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    logAudit({
+      tenantId: req.user!.tenantId,
+      userId,
+      action: 'password.changed',
+      resourceType: 'user',
+      resourceId: userId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.json({ data: { success: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ------------------------------------------------------------------ //
+//  GET /api/v1/users/me/notifications                                 //
+// ------------------------------------------------------------------ //
+const DEFAULT_NOTIFICATION_PREFS = {
+  preferences: {
+    transactions: { email: true, push: true, sms: false },
+    leads: { email: true, push: true, sms: true },
+    documents: { email: true, push: true, sms: false },
+    marketing: { email: true, push: false, sms: false },
+    compliance_alerts: { email: true, push: true, sms: true },
+    team_updates: { email: true, push: false, sms: false },
+  },
+  quietHours: { enabled: false, start: '22:00', end: '07:00' },
+  weekendDnd: false,
+};
+
+router.get('/me/notifications', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+
+    const [user] = await db
+      .select({ preferences: users.preferences })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    const prefs = (user?.preferences as any)?.notifications ?? DEFAULT_NOTIFICATION_PREFS;
+    res.json({ data: prefs });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ------------------------------------------------------------------ //
+//  PATCH /api/v1/users/me/notifications                               //
+// ------------------------------------------------------------------ //
+router.patch('/me/notifications', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const body = req.body;
+
+    // Fetch current preferences
+    const [user] = await db
+      .select({ preferences: users.preferences })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    const currentPrefs = (user?.preferences as any) ?? {};
+    const updatedPrefs = { ...currentPrefs, notifications: body };
+
+    await db
+      .update(users)
+      .set({ preferences: updatedPrefs, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    res.json({ data: body });
   } catch (err) {
     next(err);
   }

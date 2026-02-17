@@ -6,6 +6,9 @@ import {
   Upload, GripVertical, Clock, Volume2, Captions,
   Sparkles, Eye, Palette, MonitorPlay, Smartphone,
 } from 'lucide-react';
+import { addToast } from '../../../../hooks/use-toast';
+
+const comingSoon = (action: string) => addToast({ type: 'info', title: `${action}`, message: 'AI video generation will be available in a future update.' });
 
 const videoTypes = ["Tour Video", "Market Update", "Testimonial", "Agent Intro", "Custom"];
 const moodOptions = ["Upbeat", "Professional", "Calm", "Energetic", "Inspirational", "Dramatic"];
@@ -98,7 +101,7 @@ export default function VideoGeneratorPage() {
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2 mb-4"><div className="h-full bg-[var(--color-secondary)] rounded-full transition-all" style={{ width: `${progress}%` }} /></div>
-            <button className="w-full py-3 bg-[var(--color-secondary)] text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" />Generate Video</button>
+            <button onClick={() => comingSoon('Generate Video')} className="w-full py-3 bg-[var(--color-secondary)] text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"><Sparkles className="w-5 h-5" />Generate Video</button>
           </div>
 
           {/* Generated Videos */}
@@ -110,9 +113,9 @@ export default function VideoGeneratorPage() {
                   <div className="w-20 h-14 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg flex items-center justify-center flex-shrink-0"><Play className="w-5 h-5 text-gray-500" /></div>
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{video.title}</p><p className="text-xs text-gray-400">{video.duration} | {video.format} | {video.date}</p></div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg"><Eye className="w-4 h-4" /></button>
-                    <button className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg"><Download className="w-4 h-4" /></button>
-                    <button className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg"><Upload className="w-4 h-4" /></button>
+                    <button onClick={() => comingSoon('View')} className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg"><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => comingSoon('Download')} className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg"><Download className="w-4 h-4" /></button>
+                    <button onClick={() => comingSoon('Upload')} className="p-2 text-gray-400 hover:text-[var(--color-secondary)] hover:bg-gray-100 rounded-lg"><Upload className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))}

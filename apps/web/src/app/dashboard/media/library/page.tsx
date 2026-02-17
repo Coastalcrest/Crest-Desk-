@@ -6,6 +6,9 @@ import {
   Download, Heart, Upload, Star, ChevronLeft, ChevronRight,
   Sparkles, Grid, Film, Volume2, Layers, Flower2,
 } from 'lucide-react';
+import { addToast } from '../../../../hooks/use-toast';
+
+const comingSoon = (action: string) => addToast({ type: 'info', title: `${action}`, message: 'Asset library management will be available in a future update.' });
 
 const categories = ["All", "Stock Photos", "Icons", "Backgrounds", "Music", "Sound Effects", "Fonts", "Animations"];
 const moodFilters = ["Any", "Happy", "Calm", "Professional", "Energetic", "Dramatic"];
@@ -68,7 +71,7 @@ export default function AssetLibraryPage() {
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-lg"><Layers className="w-5 h-5 text-white" /></div>
           <div><h1 className="text-xl font-bold text-gray-900">Asset Library</h1><p className="text-sm text-gray-500">Browse and manage your media assets</p></div>
-          <button className="ml-auto px-4 py-2 bg-[var(--color-secondary)] text-white rounded-lg text-sm font-medium hover:shadow-md transition-all flex items-center gap-2"><Upload className="w-4 h-4" />Upload Asset</button>
+          <button onClick={() => comingSoon('Upload Asset')} className="ml-auto px-4 py-2 bg-[var(--color-secondary)] text-white rounded-lg text-sm font-medium hover:shadow-md transition-all flex items-center gap-2"><Upload className="w-4 h-4" />Upload Asset</button>
         </div>
         {/* Category Tabs */}
         <div className="flex gap-1 overflow-x-auto">
@@ -95,8 +98,8 @@ export default function AssetLibraryPage() {
                 <div className="relative h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                   {getAssetIcon(asset.type)}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                    <button className="px-3 py-1.5 bg-[var(--color-secondary)] text-white rounded-lg text-xs font-medium shadow">Use</button>
-                    <button className="p-1.5 bg-white rounded-lg shadow"><Heart className="w-3.5 h-3.5 text-gray-600" /></button>
+                    <button onClick={() => comingSoon('Use Asset')} className="px-3 py-1.5 bg-[var(--color-secondary)] text-white rounded-lg text-xs font-medium shadow">Use</button>
+                    <button onClick={() => comingSoon('Favorite')} className="p-1.5 bg-white rounded-lg shadow"><Heart className="w-3.5 h-3.5 text-gray-600" /></button>
                   </div>
                 </div>
                 <div className="p-3">

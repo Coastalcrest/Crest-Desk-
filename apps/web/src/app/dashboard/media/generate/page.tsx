@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import {
   Image, Wand2, Download, Eye, RefreshCw, CheckCircle,
   AlertTriangle, ChevronDown, Palette, Type, ToggleLeft,
-  Sparkles, Home, Share2, Layout, Layers, Camera, Upload,
+  Sparkles, Home, Share2, Layout, Layers, Camera, Upload, Info,
 } from 'lucide-react';
+import { addToast } from '../../../../hooks/use-toast';
+
+const comingSoon = (action: string) => addToast({ type: 'info', title: `${action}`, message: 'AI image generation will be available in a future update.' });
 
 const projectTypes = [
   { id: "listing", label: "Listing Graphic", icon: "Home" },
@@ -91,9 +94,9 @@ export default function ImageGeneratorPage() {
 
           {/* Action Buttons */}
           <div className="flex items-center justify-center gap-4 mt-6">
-            <button className="px-8 py-3 bg-[var(--color-secondary)] text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2"><Sparkles className="w-5 h-5" />Generate</button>
-            <button className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2"><RefreshCw className="w-4 h-4" />Regenerate</button>
-            <button className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2"><Layers className="w-4 h-4" />Variations</button>
+            <button onClick={() => comingSoon('Generate')} className="px-8 py-3 bg-[var(--color-secondary)] text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2"><Sparkles className="w-5 h-5" />Generate</button>
+            <button onClick={() => comingSoon('Regenerate')} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2"><RefreshCw className="w-4 h-4" />Regenerate</button>
+            <button onClick={() => comingSoon('Variations')} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all flex items-center gap-2"><Layers className="w-4 h-4" />Variations</button>
           </div>
 
           {/* Generated Results Carousel */}
@@ -106,9 +109,9 @@ export default function ImageGeneratorPage() {
                   <div className="p-2 bg-white">
                     <p className="text-xs font-medium text-gray-700 text-center">{result.label}</p>
                     <div className="flex items-center justify-center gap-2 mt-2">
-                      <button className="p-1 text-gray-400 hover:text-[var(--color-secondary)]"><Eye className="w-3.5 h-3.5" /></button>
-                      <button className="p-1 text-gray-400 hover:text-[var(--color-secondary)]"><Download className="w-3.5 h-3.5" /></button>
-                      <button className="p-1 text-gray-400 hover:text-[var(--color-secondary)]"><Upload className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => comingSoon('View')} className="p-1 text-gray-400 hover:text-[var(--color-secondary)]"><Eye className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => comingSoon('Download')} className="p-1 text-gray-400 hover:text-[var(--color-secondary)]"><Download className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => comingSoon('Upload')} className="p-1 text-gray-400 hover:text-[var(--color-secondary)]"><Upload className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
