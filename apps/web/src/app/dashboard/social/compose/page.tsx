@@ -161,7 +161,7 @@ export default function ComposePostPage() {
               </div>
               <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={6}
                 className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                style={{ focusRingColor: "var(--color-secondary, #2A9D8F)" }}
+                style={{ "--tw-ring-color": "var(--color-secondary, #2A9D8F)" } as React.CSSProperties}
                 placeholder="Write your post content here..." />
               <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center gap-3">

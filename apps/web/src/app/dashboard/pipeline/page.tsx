@@ -25,6 +25,22 @@ import { addToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const DEFAULT_STAGES = [
+  'New Lead',
+  'Contacted',
+  'Showing',
+  'Offer Made',
+  'Under Contract',
+  'Inspection',
+  'Appraisal',
+  'Closing',
+  'Closed Won',
+  'Closed Lost',
+];
+
+// ---------------------------------------------------------------------------
 // Types — aligned with GET /deals and GET /deals/stats API responses
 // ---------------------------------------------------------------------------
 
