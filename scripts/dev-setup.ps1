@@ -107,8 +107,11 @@ Write-Host "  Redis is ready" -ForegroundColor Green
 # ─── Run database migrations ─────────────────────────────────────────────────
 
 Write-Host "`nRunning database migrations..." -ForegroundColor Yellow
-& npm run db:migrate
+$env:DATABASE_URL = "postgresql://crestdesk:crestdesk_dev@localhost:5432/crestdesk"
+Set-Location packages\db
+& npx tsx seeds/run-migrations.ts
 if ($LASTEXITCODE -ne 0) {
+    Set-Location ..\..
     Write-Host "  Migrations failed! Check DATABASE_URL in .env" -ForegroundColor Red
     exit 1
 }
@@ -117,7 +120,6 @@ Write-Host "  Migrations complete" -ForegroundColor Green
 # ─── Run seed data ───────────────────────────────────────────────────────────
 
 Write-Host "`nSeeding database with demo data..." -ForegroundColor Yellow
-Set-Location packages\db
 & npx tsx seeds/index.ts
 Set-Location ..\..
 Write-Host "  Seed data loaded" -ForegroundColor Green
