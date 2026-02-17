@@ -75,7 +75,7 @@ export default function EmailComposePage() {
   const generateAiDraft = () => {
     setAiGenerating(true);
     setTimeout(() => {
-      setBody('Dear Sarah,
+      setBody(`Dear Sarah,
 
 Thank you for your continued interest in 742 Evergreen Terrace. I have reviewed the revised offer with my clients.
 
@@ -85,7 +85,7 @@ I believe we are very close to reaching an agreement. Would you be available for
 
 Best regards,
 John Doe
-CrestDesk Realty');
+CrestDesk Realty`);
       setAiGenerating(false);
       setAiDraftReady(true);
     }, 2000);
