@@ -40,13 +40,13 @@ export default function MediaHistoryPage() {
   const passRate = Math.round((mockHistory.filter((i) => i.compliance === "passed").length / totalGenerated) * 100);
 
   const filtered = mockHistory.filter((item) => {
-    if (typeFilter \!== "all" && item.type \!== typeFilter) return false;
-    if (statusFilter \!== "all" && item.status \!== statusFilter) return false;
+    if (typeFilter !== "all" && item.type !== typeFilter) return false;
+    if (statusFilter !== "all" && item.status !== statusFilter) return false;
     return true;
   });
   const sorted = [...filtered].sort((a, b) => sortOrder === "newest" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
   const dateGroups: Record<string, HistoryItem[]> = {};
-  sorted.forEach((item) => { if (\!dateGroups[item.date]) dateGroups[item.date] = []; dateGroups[item.date].push(item); });
+  sorted.forEach((item) => { if (!dateGroups[item.date]) dateGroups[item.date] = []; dateGroups[item.date].push(item); });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

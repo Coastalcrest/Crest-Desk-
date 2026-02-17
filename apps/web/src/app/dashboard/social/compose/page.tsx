@@ -29,8 +29,8 @@ const postTypes = [
 ];
 
 const aiCaptions = [
-  "Just listed\! This stunning 4BR/3BA home at 742 Evergreen Terrace features panoramic mountain views, a gourmet kitchen with quartz countertops, and a backyard oasis perfect for entertaining. Schedule your private showing today\! #NewListing #DreamHome #RealEstate",
-  "Your dream home awaits at 742 Evergreen Terrace\! With 4 bedrooms, 3 baths, and breathtaking mountain views from every room, this property is the total package. The chef-worthy kitchen and resort-style backyard are just the beginning. DM for details\! #JustListed #HomeSweetHome",
+  "Just listed! This stunning 4BR/3BA home at 742 Evergreen Terrace features panoramic mountain views, a gourmet kitchen with quartz countertops, and a backyard oasis perfect for entertaining. Schedule your private showing today! #NewListing #DreamHome #RealEstate",
+  "Your dream home awaits at 742 Evergreen Terrace! With 4 bedrooms, 3 baths, and breathtaking mountain views from every room, this property is the total package. The chef-worthy kitchen and resort-style backyard are just the beginning. DM for details! #JustListed #HomeSweetHome",
   "JUST LISTED - 742 Evergreen Terrace. 4 bed | 3 bath | Mountain views | Gourmet kitchen | Private backyard paradise. This one will not last. Open house this Saturday 1-4 PM. Link in bio for full details. #OpenHouse #LuxuryLiving #CoastalCrestRealty",
 ];
 
@@ -50,7 +50,7 @@ const mockMedia = [
 export default function ComposePostPage() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["facebook", "instagram"]);
   const [selectedPostType, setSelectedPostType] = useState("new_listing");
-  const [content, setContent] = useState("Just listed\! This stunning 4BR/3BA home at 742 Evergreen Terrace features panoramic mountain views, a gourmet kitchen with quartz countertops, and a backyard oasis perfect for entertaining. Schedule your private showing today\!");
+  const [content, setContent] = useState("Just listed! This stunning 4BR/3BA home at 742 Evergreen Terrace features panoramic mountain views, a gourmet kitchen with quartz countertops, and a backyard oasis perfect for entertaining. Schedule your private showing today!");
   const [hashtags, setHashtags] = useState<string[]>(["#NewListing", "#DreamHome", "#RealEstate", "#CoastalCrestRealty"]);
   const [showAiSuggestions, setShowAiSuggestions] = useState(false);
   const [scheduleMode, setScheduleMode] = useState<"now" | "schedule">("schedule");
@@ -63,7 +63,7 @@ export default function ComposePostPage() {
 
   const togglePlatform = (key: string) => {
     setSelectedPlatforms((prev) =>
-      prev.includes(key) ? prev.filter((p) => p \!== key) : [...prev, key]
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
     );
   };
 
@@ -73,7 +73,7 @@ export default function ComposePostPage() {
   };
 
   const addHashtag = () => {
-    if (newHashtag && \!hashtags.includes(newHashtag)) {
+    if (newHashtag && !hashtags.includes(newHashtag)) {
       const tag = newHashtag.startsWith("#") ? newHashtag : `#${newHashtag}`;
       setHashtags([...hashtags, tag]);
       setNewHashtag("");
@@ -81,7 +81,7 @@ export default function ComposePostPage() {
   };
 
   const removeHashtag = (tag: string) => {
-    setHashtags(hashtags.filter((h) => h \!== tag));
+    setHashtags(hashtags.filter((h) => h !== tag));
   };
 
   const fullContent = content + (hashtags.length > 0 ? "\n\n" + hashtags.join(" ") : "");

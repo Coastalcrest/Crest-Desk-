@@ -28,7 +28,7 @@ const templateCategories = ['Introduction', 'Follow-Up', 'Offer', 'Counter-Offer
 const templates = [
   { id: 1, name: 'New Listing Introduction', category: 'Introduction', subject: 'Exciting New Listing at {{property_address}}' },
   { id: 2, name: 'Offer Follow-Up', category: 'Follow-Up', subject: 'Following Up on Your Offer - {{property_address}}' },
-  { id: 3, name: 'Closing Congratulations', category: 'Closing', subject: 'Congratulations on Your New Home\!' },
+  { id: 3, name: 'Closing Congratulations', category: 'Closing', subject: 'Congratulations on Your New Home!' },
 ];
 
 const mockAttachments = [
@@ -66,11 +66,11 @@ export default function EmailComposePage() {
   useEffect(() => { const t = setTimeout(() => setLoading(false), 400); return () => clearTimeout(t); }, []);
 
   const addRecipient = (email: string) => {
-    if (\!toRecipients.includes(email)) setToRecipients([...toRecipients, email]);
+    if (!toRecipients.includes(email)) setToRecipients([...toRecipients, email]);
     setToInput(''); setShowSuggestions(false);
   };
-  const removeRecipient = (email: string) => setToRecipients(toRecipients.filter(r => r \!== email));
-  const removeAttachment = (name: string) => setAttachments(attachments.filter(a => a.name \!== name));
+  const removeRecipient = (email: string) => setToRecipients(toRecipients.filter(r => r !== email));
+  const removeAttachment = (name: string) => setAttachments(attachments.filter(a => a.name !== name));
 
   const generateAiDraft = () => {
     setAiGenerating(true);

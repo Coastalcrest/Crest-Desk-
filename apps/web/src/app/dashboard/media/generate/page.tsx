@@ -138,7 +138,7 @@ export default function ImageGeneratorPage() {
 
           <div className="flex items-center justify-between">
             <label className="text-sm font-semibold text-gray-700">Branding</label>
-            <button onClick={() => setBrandingEnabled(\!brandingEnabled)} className={`w-11 h-6 rounded-full transition-colors ${brandingEnabled ? "bg-[var(--color-secondary)]" : "bg-gray-300"}`}>
+            <button onClick={() => setBrandingEnabled(!brandingEnabled)} className={`w-11 h-6 rounded-full transition-colors ${brandingEnabled ? "bg-[var(--color-secondary)]" : "bg-gray-300"}`}>
               <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${brandingEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
             </button>
           </div>

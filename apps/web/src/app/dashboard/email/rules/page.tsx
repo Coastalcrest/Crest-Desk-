@@ -144,7 +144,7 @@ export default function EmailRulesPage() {
   const [expandedRule, setExpandedRule] = useState(1 as number | null);
 
   const toggleEnabled = (id: number) => {
-    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: \!r.enabled } : r)));
+    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
   };
 
   return (
