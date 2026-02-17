@@ -169,7 +169,7 @@ export default function EmailTemplatesPage() {
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${config?.bg} ${config?.color}`}>
                       <CategoryIcon className="w-3 h-3" />{template.category}
                     </span>
-                    {template.isShared && <Share2 className="w-3.5 h-3.5 text-gray-400" title="Shared template" />}
+                    {template.isShared && <span title="Shared template"><Share2 className="w-3.5 h-3.5 text-gray-400" /></span>}
                   </div>
                   <button className="p-1 rounded hover:bg-gray-100 text-gray-400"><MoreHorizontal className="w-4 h-4" /></button>
                 </div>
