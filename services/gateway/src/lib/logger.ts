@@ -11,8 +11,10 @@ import type { Logger } from "pino";
  */
 function createLogger(): Logger {
   const isProduction = process.env.NODE_ENV === "production";
+  const useDatadog = isProduction && process.env.DD_API_KEY;
 
-  if (isProduction) {
+  if (useDatadog) {
+    // Full Datadog transport — only when DD_API_KEY is set
     return pino({
       level: process.env.LOG_LEVEL ?? "info",
       formatters: {
@@ -26,6 +28,18 @@ function createLogger(): Logger {
           service: "crestdesk-gateway",
           ddsource: "nodejs",
           ddtags: `env:${process.env.DD_ENV ?? "production"}`,
+        },
+      },
+    });
+  }
+
+  if (isProduction) {
+    // Plain JSON logging to stdout (Docker / cloud environments)
+    return pino({
+      level: process.env.LOG_LEVEL ?? "info",
+      formatters: {
+        level(label: string) {
+          return { level: label };
         },
       },
     });

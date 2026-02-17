@@ -35,6 +35,7 @@ RUN npx esbuild services/gateway/src/index.ts \
     --external:pg-native \
     --external:dd-trace \
     --external:pino-pretty \
+    --external:pino-datadog-transport \
     --format=cjs
 
 # Prune dev dependencies
