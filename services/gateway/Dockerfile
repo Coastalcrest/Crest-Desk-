@@ -17,16 +17,25 @@ COPY packages/db/package.json packages/db/
 
 RUN npm ci
 
-# Copy gateway source + db schemas (needed for tsc via relative imports)
+# Copy gateway source + db schemas (needed via relative imports)
 COPY services/gateway/ services/gateway/
 COPY packages/db/src/ packages/db/src/
 COPY tsconfig.json ./
 
-# Compile TypeScript using Docker-specific tsconfig that:
-# - Sets rootDir=../.. so relative imports to packages/db resolve
-# - Relaxes strict checks (noUnusedLocals/Params) for production build
-# Output: dist/services/gateway/src/index.js, dist/packages/db/src/schema/*
-RUN cd services/gateway && npx tsc -p tsconfig.docker.json
+# Bundle with esbuild (transpile-only, no type checking)
+# This matches dev-mode behavior where tsx runs without type checks.
+# Native modules (argon2, pg-native, dd-trace) are kept external
+# so they load from node_modules at runtime.
+RUN npx esbuild services/gateway/src/index.ts \
+    --bundle \
+    --platform=node \
+    --target=node20 \
+    --outfile=services/gateway/dist/index.js \
+    --external:argon2 \
+    --external:pg-native \
+    --external:dd-trace \
+    --external:pino-pretty \
+    --format=cjs
 
 # Prune dev dependencies
 RUN cd services/gateway && npm prune --production
@@ -41,8 +50,8 @@ RUN addgroup -S crestdesk && adduser -S crestdesk -G crestdesk
 
 WORKDIR /app
 
-# Copy compiled output and production deps
-COPY --from=builder /app/services/gateway/dist/ ./dist/
+# Copy bundled output and production deps
+COPY --from=builder /app/services/gateway/dist/index.js ./dist/index.js
 COPY --from=builder /app/services/gateway/node_modules ./node_modules
 COPY --from=builder /app/services/gateway/package.json ./
 
@@ -51,5 +60,4 @@ USER crestdesk
 
 EXPOSE 4000
 
-# With rootDir=../../ the entry point is nested under the repo structure
-CMD ["node", "dist/services/gateway/src/index.js"]
+CMD ["node", "dist/index.js"]
