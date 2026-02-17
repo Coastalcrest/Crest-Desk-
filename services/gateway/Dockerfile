@@ -22,10 +22,11 @@ COPY services/gateway/ services/gateway/
 COPY packages/db/src/ packages/db/src/
 COPY tsconfig.json ./
 
-# Compile TypeScript — rootDir must be repo root because gateway
-# imports ../../../../packages/db/src/schema/* (77 re-exports).
+# Compile TypeScript using Docker-specific tsconfig that:
+# - Sets rootDir=../.. so relative imports to packages/db resolve
+# - Relaxes strict checks (noUnusedLocals/Params) for production build
 # Output: dist/services/gateway/src/index.js, dist/packages/db/src/schema/*
-RUN cd services/gateway && npx tsc --rootDir ../../ --outDir ./dist
+RUN cd services/gateway && npx tsc -p tsconfig.docker.json
 
 # Prune dev dependencies
 RUN cd services/gateway && npm prune --production
