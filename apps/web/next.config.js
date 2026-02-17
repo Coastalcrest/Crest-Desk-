@@ -13,6 +13,11 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // Allow useSearchParams without Suspense boundary (pages use force-dynamic anyway)
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
+
   // PWA-ready headers
   async headers() {
     return [
