@@ -15,6 +15,7 @@
     "db:seed": "tsx seeds/index.ts"
   },
   "dependencies": {
+    "argon2": "^0.41.0",
     "drizzle-orm": "^0.35.0",
     "pg": "^8.13.0"
   },

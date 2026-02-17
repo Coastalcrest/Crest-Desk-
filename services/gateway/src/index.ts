@@ -1,7 +1,10 @@
 /**
  * dd-trace MUST be required before any other module.
+ * Only loaded when explicitly enabled to avoid dev-mode crashes.
  */
-import 'dd-trace/init';
+if (process.env.DD_TRACE_ENABLED === 'true') {
+  require('dd-trace/init');
+}
 
 import express from 'express';
 import cors from 'cors';

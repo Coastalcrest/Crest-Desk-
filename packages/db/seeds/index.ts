@@ -10,6 +10,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Client } from 'pg';
+import { createTestUsers } from './create-test-users';
 
 const SEED_FILES = [
   'compliance-rules.sql',
@@ -48,6 +49,10 @@ async function runSeeds() {
         // Continue with next file instead of aborting
       }
     }
+
+    // Update demo users with real password hashes
+    console.log('\nSetting demo user passwords...');
+    await createTestUsers();
 
     console.log('\nSeed runner complete');
   } catch (err) {
